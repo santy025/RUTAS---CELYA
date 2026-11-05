@@ -1,0 +1,1567 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Zonificación CELYA</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* required styles */
+
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-tile-container,
+.leaflet-pane > svg,
+.leaflet-pane > canvas,
+.leaflet-zoom-box,
+.leaflet-image-layer,
+.leaflet-layer {
+	position: absolute;
+	left: 0;
+	top: 0;
+	}
+.leaflet-container {
+	overflow: hidden;
+	}
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+	-webkit-user-select: none;
+	   -moz-user-select: none;
+	        user-select: none;
+	  -webkit-user-drag: none;
+	}
+/* Prevents IE11 from highlighting tiles in blue */
+.leaflet-tile::selection {
+	background: transparent;
+}
+/* Safari renders non-retina tile on retina better with this, but Chrome is worse */
+.leaflet-safari .leaflet-tile {
+	image-rendering: -webkit-optimize-contrast;
+	}
+/* hack that prevents hw layers "stretching" when loading new tiles */
+.leaflet-safari .leaflet-tile-container {
+	width: 1600px;
+	height: 1600px;
+	-webkit-transform-origin: 0 0;
+	}
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+	display: block;
+	}
+/* .leaflet-container svg: reset svg max-width decleration shipped in Joomla! (joomla.org) 3.x */
+/* .leaflet-container img: map is broken in FF if you have max-width: 100% on tiles */
+.leaflet-container .leaflet-overlay-pane svg {
+	max-width: none !important;
+	max-height: none !important;
+	}
+.leaflet-container .leaflet-marker-pane img,
+.leaflet-container .leaflet-shadow-pane img,
+.leaflet-container .leaflet-tile-pane img,
+.leaflet-container img.leaflet-image-layer,
+.leaflet-container .leaflet-tile {
+	max-width: none !important;
+	max-height: none !important;
+	width: auto;
+	padding: 0;
+	}
+
+.leaflet-container img.leaflet-tile {
+	/* See: https://bugs.chromium.org/p/chromium/issues/detail?id=600120 */
+	mix-blend-mode: plus-lighter;
+}
+
+.leaflet-container.leaflet-touch-zoom {
+	-ms-touch-action: pan-x pan-y;
+	touch-action: pan-x pan-y;
+	}
+.leaflet-container.leaflet-touch-drag {
+	-ms-touch-action: pinch-zoom;
+	/* Fallback for FF which doesn't support pinch-zoom */
+	touch-action: none;
+	touch-action: pinch-zoom;
+}
+.leaflet-container.leaflet-touch-drag.leaflet-touch-zoom {
+	-ms-touch-action: none;
+	touch-action: none;
+}
+.leaflet-container {
+	-webkit-tap-highlight-color: transparent;
+}
+.leaflet-container a {
+	-webkit-tap-highlight-color: rgba(51, 181, 229, 0.4);
+}
+.leaflet-tile {
+	filter: inherit;
+	visibility: hidden;
+	}
+.leaflet-tile-loaded {
+	visibility: inherit;
+	}
+.leaflet-zoom-box {
+	width: 0;
+	height: 0;
+	-moz-box-sizing: border-box;
+	     box-sizing: border-box;
+	z-index: 800;
+	}
+/* workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=888319 */
+.leaflet-overlay-pane svg {
+	-moz-user-select: none;
+	}
+
+.leaflet-pane         { z-index: 400; }
+
+.leaflet-tile-pane    { z-index: 200; }
+.leaflet-overlay-pane { z-index: 400; }
+.leaflet-shadow-pane  { z-index: 500; }
+.leaflet-marker-pane  { z-index: 600; }
+.leaflet-tooltip-pane   { z-index: 650; }
+.leaflet-popup-pane   { z-index: 700; }
+
+.leaflet-map-pane canvas { z-index: 100; }
+.leaflet-map-pane svg    { z-index: 200; }
+
+.leaflet-vml-shape {
+	width: 1px;
+	height: 1px;
+	}
+.lvml {
+	behavior: url(#default#VML);
+	display: inline-block;
+	position: absolute;
+	}
+
+
+/* control positioning */
+
+.leaflet-control {
+	position: relative;
+	z-index: 800;
+	pointer-events: visiblePainted; /* IE 9-10 doesn't have auto */
+	pointer-events: auto;
+	}
+.leaflet-top,
+.leaflet-bottom {
+	position: absolute;
+	z-index: 1000;
+	pointer-events: none;
+	}
+.leaflet-top {
+	top: 0;
+	}
+.leaflet-right {
+	right: 0;
+	}
+.leaflet-bottom {
+	bottom: 0;
+	}
+.leaflet-left {
+	left: 0;
+	}
+.leaflet-control {
+	float: left;
+	clear: both;
+	}
+.leaflet-right .leaflet-control {
+	float: right;
+	}
+.leaflet-top .leaflet-control {
+	margin-top: 10px;
+	}
+.leaflet-bottom .leaflet-control {
+	margin-bottom: 10px;
+	}
+.leaflet-left .leaflet-control {
+	margin-left: 10px;
+	}
+.leaflet-right .leaflet-control {
+	margin-right: 10px;
+	}
+
+
+/* zoom and fade animations */
+
+.leaflet-fade-anim .leaflet-popup {
+	opacity: 0;
+	-webkit-transition: opacity 0.2s linear;
+	   -moz-transition: opacity 0.2s linear;
+	        transition: opacity 0.2s linear;
+	}
+.leaflet-fade-anim .leaflet-map-pane .leaflet-popup {
+	opacity: 1;
+	}
+.leaflet-zoom-animated {
+	-webkit-transform-origin: 0 0;
+	    -ms-transform-origin: 0 0;
+	        transform-origin: 0 0;
+	}
+svg.leaflet-zoom-animated {
+	will-change: transform;
+}
+
+.leaflet-zoom-anim .leaflet-zoom-animated {
+	-webkit-transition: -webkit-transform 0.25s cubic-bezier(0,0,0.25,1);
+	   -moz-transition:    -moz-transform 0.25s cubic-bezier(0,0,0.25,1);
+	        transition:         transform 0.25s cubic-bezier(0,0,0.25,1);
+	}
+.leaflet-zoom-anim .leaflet-tile,
+.leaflet-pan-anim .leaflet-tile {
+	-webkit-transition: none;
+	   -moz-transition: none;
+	        transition: none;
+	}
+
+.leaflet-zoom-anim .leaflet-zoom-hide {
+	visibility: hidden;
+	}
+
+
+/* cursors */
+
+.leaflet-interactive {
+	cursor: pointer;
+	}
+.leaflet-grab {
+	cursor: -webkit-grab;
+	cursor:    -moz-grab;
+	cursor:         grab;
+	}
+.leaflet-crosshair,
+.leaflet-crosshair .leaflet-interactive {
+	cursor: crosshair;
+	}
+.leaflet-popup-pane,
+.leaflet-control {
+	cursor: auto;
+	}
+.leaflet-dragging .leaflet-grab,
+.leaflet-dragging .leaflet-grab .leaflet-interactive,
+.leaflet-dragging .leaflet-marker-draggable {
+	cursor: move;
+	cursor: -webkit-grabbing;
+	cursor:    -moz-grabbing;
+	cursor:         grabbing;
+	}
+
+/* marker & overlays interactivity */
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-image-layer,
+.leaflet-pane > svg path,
+.leaflet-tile-container {
+	pointer-events: none;
+	}
+
+.leaflet-marker-icon.leaflet-interactive,
+.leaflet-image-layer.leaflet-interactive,
+.leaflet-pane > svg path.leaflet-interactive,
+svg.leaflet-image-layer.leaflet-interactive path {
+	pointer-events: visiblePainted; /* IE 9-10 doesn't have auto */
+	pointer-events: auto;
+	}
+
+/* visual tweaks */
+
+.leaflet-container {
+	background: #ddd;
+	outline-offset: 1px;
+	}
+.leaflet-container a {
+	color: #0078A8;
+	}
+.leaflet-zoom-box {
+	border: 2px dotted #38f;
+	background: rgba(255,255,255,0.5);
+	}
+
+
+/* general typography */
+.leaflet-container {
+	font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	font-size: 0.75rem;
+	line-height: 1.5;
+	}
+
+
+/* general toolbar styles */
+
+.leaflet-bar {
+	box-shadow: 0 1px 5px rgba(0,0,0,0.65);
+	border-radius: 4px;
+	}
+.leaflet-bar a {
+	background-color: #fff;
+	border-bottom: 1px solid #ccc;
+	width: 26px;
+	height: 26px;
+	line-height: 26px;
+	display: block;
+	text-align: center;
+	text-decoration: none;
+	color: black;
+	}
+.leaflet-bar a,
+.leaflet-control-layers-toggle {
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	display: block;
+	}
+.leaflet-bar a:hover,
+.leaflet-bar a:focus {
+	background-color: #f4f4f4;
+	}
+.leaflet-bar a:first-child {
+	border-top-left-radius: 4px;
+	border-top-right-radius: 4px;
+	}
+.leaflet-bar a:last-child {
+	border-bottom-left-radius: 4px;
+	border-bottom-right-radius: 4px;
+	border-bottom: none;
+	}
+.leaflet-bar a.leaflet-disabled {
+	cursor: default;
+	background-color: #f4f4f4;
+	color: #bbb;
+	}
+
+.leaflet-touch .leaflet-bar a {
+	width: 30px;
+	height: 30px;
+	line-height: 30px;
+	}
+.leaflet-touch .leaflet-bar a:first-child {
+	border-top-left-radius: 2px;
+	border-top-right-radius: 2px;
+	}
+.leaflet-touch .leaflet-bar a:last-child {
+	border-bottom-left-radius: 2px;
+	border-bottom-right-radius: 2px;
+	}
+
+/* zoom control */
+
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out {
+	font: bold 18px 'Lucida Console', Monaco, monospace;
+	text-indent: 1px;
+	}
+
+.leaflet-touch .leaflet-control-zoom-in, .leaflet-touch .leaflet-control-zoom-out  {
+	font-size: 22px;
+	}
+
+
+/* layers control */
+
+.leaflet-control-layers {
+	box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+	background: #fff;
+	border-radius: 5px;
+	}
+.leaflet-control-layers-toggle {
+	background-image: url(images/layers.png);
+	width: 36px;
+	height: 36px;
+	}
+.leaflet-retina .leaflet-control-layers-toggle {
+	background-image: url(images/layers-2x.png);
+	background-size: 26px 26px;
+	}
+.leaflet-touch .leaflet-control-layers-toggle {
+	width: 44px;
+	height: 44px;
+	}
+.leaflet-control-layers .leaflet-control-layers-list,
+.leaflet-control-layers-expanded .leaflet-control-layers-toggle {
+	display: none;
+	}
+.leaflet-control-layers-expanded .leaflet-control-layers-list {
+	display: block;
+	position: relative;
+	}
+.leaflet-control-layers-expanded {
+	padding: 6px 10px 6px 6px;
+	color: #333;
+	background: #fff;
+	}
+.leaflet-control-layers-scrollbar {
+	overflow-y: scroll;
+	overflow-x: hidden;
+	padding-right: 5px;
+	}
+.leaflet-control-layers-selector {
+	margin-top: 2px;
+	position: relative;
+	top: 1px;
+	}
+.leaflet-control-layers label {
+	display: block;
+	font-size: 13px;
+	font-size: 1.08333em;
+	}
+.leaflet-control-layers-separator {
+	height: 0;
+	border-top: 1px solid #ddd;
+	margin: 5px -10px 5px -6px;
+	}
+
+/* Default icon URLs */
+.leaflet-default-icon-path { /* used only in path-guessing heuristic, see L.Icon.Default */
+	background-image: url(images/marker-icon.png);
+	}
+
+
+/* attribution and scale controls */
+
+.leaflet-container .leaflet-control-attribution {
+	background: #fff;
+	background: rgba(255, 255, 255, 0.8);
+	margin: 0;
+	}
+.leaflet-control-attribution,
+.leaflet-control-scale-line {
+	padding: 0 5px;
+	color: #333;
+	line-height: 1.4;
+	}
+.leaflet-control-attribution a {
+	text-decoration: none;
+	}
+.leaflet-control-attribution a:hover,
+.leaflet-control-attribution a:focus {
+	text-decoration: underline;
+	}
+.leaflet-attribution-flag {
+	display: inline !important;
+	vertical-align: baseline !important;
+	width: 1em;
+	height: 0.6669em;
+	}
+.leaflet-left .leaflet-control-scale {
+	margin-left: 5px;
+	}
+.leaflet-bottom .leaflet-control-scale {
+	margin-bottom: 5px;
+	}
+.leaflet-control-scale-line {
+	border: 2px solid #777;
+	border-top: none;
+	line-height: 1.1;
+	padding: 2px 5px 1px;
+	white-space: nowrap;
+	-moz-box-sizing: border-box;
+	     box-sizing: border-box;
+	background: rgba(255, 255, 255, 0.8);
+	text-shadow: 1px 1px #fff;
+	}
+.leaflet-control-scale-line:not(:first-child) {
+	border-top: 2px solid #777;
+	border-bottom: none;
+	margin-top: -2px;
+	}
+.leaflet-control-scale-line:not(:first-child):not(:last-child) {
+	border-bottom: 2px solid #777;
+	}
+
+.leaflet-touch .leaflet-control-attribution,
+.leaflet-touch .leaflet-control-layers,
+.leaflet-touch .leaflet-bar {
+	box-shadow: none;
+	}
+.leaflet-touch .leaflet-control-layers,
+.leaflet-touch .leaflet-bar {
+	border: 2px solid rgba(0,0,0,0.2);
+	background-clip: padding-box;
+	}
+
+
+/* popup */
+
+.leaflet-popup {
+	position: absolute;
+	text-align: center;
+	margin-bottom: 20px;
+	}
+.leaflet-popup-content-wrapper {
+	padding: 1px;
+	text-align: left;
+	border-radius: 12px;
+	}
+.leaflet-popup-content {
+	margin: 13px 24px 13px 20px;
+	line-height: 1.3;
+	font-size: 13px;
+	font-size: 1.08333em;
+	min-height: 1px;
+	}
+.leaflet-popup-content p {
+	margin: 17px 0;
+	margin: 1.3em 0;
+	}
+.leaflet-popup-tip-container {
+	width: 40px;
+	height: 20px;
+	position: absolute;
+	left: 50%;
+	margin-top: -1px;
+	margin-left: -20px;
+	overflow: hidden;
+	pointer-events: none;
+	}
+.leaflet-popup-tip {
+	width: 17px;
+	height: 17px;
+	padding: 1px;
+
+	margin: -10px auto 0;
+	pointer-events: auto;
+
+	-webkit-transform: rotate(45deg);
+	   -moz-transform: rotate(45deg);
+	    -ms-transform: rotate(45deg);
+	        transform: rotate(45deg);
+	}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+	background: white;
+	color: #333;
+	box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+	}
+.leaflet-container a.leaflet-popup-close-button {
+	position: absolute;
+	top: 0;
+	right: 0;
+	border: none;
+	text-align: center;
+	width: 24px;
+	height: 24px;
+	font: 16px/24px Tahoma, Verdana, sans-serif;
+	color: #757575;
+	text-decoration: none;
+	background: transparent;
+	}
+.leaflet-container a.leaflet-popup-close-button:hover,
+.leaflet-container a.leaflet-popup-close-button:focus {
+	color: #585858;
+	}
+.leaflet-popup-scrolled {
+	overflow: auto;
+	}
+
+.leaflet-oldie .leaflet-popup-content-wrapper {
+	-ms-zoom: 1;
+	}
+.leaflet-oldie .leaflet-popup-tip {
+	width: 24px;
+	margin: 0 auto;
+
+	-ms-filter: "progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678)";
+	filter: progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678);
+	}
+
+.leaflet-oldie .leaflet-control-zoom,
+.leaflet-oldie .leaflet-control-layers,
+.leaflet-oldie .leaflet-popup-content-wrapper,
+.leaflet-oldie .leaflet-popup-tip {
+	border: 1px solid #999;
+	}
+
+
+/* div icon */
+
+.leaflet-div-icon {
+	background: #fff;
+	border: 1px solid #666;
+	}
+
+
+/* Tooltip */
+/* Base styles for the element that has a tooltip */
+.leaflet-tooltip {
+	position: absolute;
+	padding: 6px;
+	background-color: #fff;
+	border: 1px solid #fff;
+	border-radius: 3px;
+	color: #222;
+	white-space: nowrap;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+	pointer-events: none;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+	}
+.leaflet-tooltip.leaflet-interactive {
+	cursor: pointer;
+	pointer-events: auto;
+	}
+.leaflet-tooltip-top:before,
+.leaflet-tooltip-bottom:before,
+.leaflet-tooltip-left:before,
+.leaflet-tooltip-right:before {
+	position: absolute;
+	pointer-events: none;
+	border: 6px solid transparent;
+	background: transparent;
+	content: "";
+	}
+
+/* Directions */
+
+.leaflet-tooltip-bottom {
+	margin-top: 6px;
+}
+.leaflet-tooltip-top {
+	margin-top: -6px;
+}
+.leaflet-tooltip-bottom:before,
+.leaflet-tooltip-top:before {
+	left: 50%;
+	margin-left: -6px;
+	}
+.leaflet-tooltip-top:before {
+	bottom: 0;
+	margin-bottom: -12px;
+	border-top-color: #fff;
+	}
+.leaflet-tooltip-bottom:before {
+	top: 0;
+	margin-top: -12px;
+	margin-left: -6px;
+	border-bottom-color: #fff;
+	}
+.leaflet-tooltip-left {
+	margin-left: -6px;
+}
+.leaflet-tooltip-right {
+	margin-left: 6px;
+}
+.leaflet-tooltip-left:before,
+.leaflet-tooltip-right:before {
+	top: 50%;
+	margin-top: -6px;
+	}
+.leaflet-tooltip-left:before {
+	right: 0;
+	margin-right: -12px;
+	border-left-color: #fff;
+	}
+.leaflet-tooltip-right:before {
+	left: 0;
+	margin-left: -12px;
+	border-right-color: #fff;
+	}
+
+/* Printing */
+
+@media print {
+	/* Prevent printers from removing background-images of controls. */
+	.leaflet-control {
+		-webkit-print-color-adjust: exact;
+		print-color-adjust: exact;
+		}
+	}
+
+</style>
+<style>
+/* Layout: herramienta de operación — encabezado compacto, barra de filtros, mapa + panel del día, calendario y pestañas de detalle. */
+:root {
+  --bg: #f2f6f6;
+  --surface: #ffffff;
+  --surface-2: #e9f0f0;
+  --ink: #1a2e35;
+  --ink-2: #4a5d63;
+  --muted: #6c7f84;
+  --line: #d2dddf;
+  --accent: #0b7f77;
+  --accent-ink: #ffffff;
+  --accent-soft: #d6f0ee;
+  --route-1: #2a78d6;
+  --route-2: #eb6834;
+  --crit: #d03b3b;
+  --warn: #fab219;
+  --warn-ink: #7a5300;
+  --info: #2a78d6;
+  --map-bg: #e6eded;
+  --shadow: 0 1px 2px rgba(26, 46, 53, .06), 0 6px 18px rgba(26, 46, 53, .07);
+  --f-display: "Barlow Semi Condensed", "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e181b; --surface: #152328; --surface-2: #1b2e34; --ink: #e6efef; --ink-2: #b4c4c7; --muted: #8fa1a5;
+    --line: #293b40; --accent: #2bbfaa; --accent-ink: #06201c; --accent-soft: #123a3a; --route-1: #3987e5; --route-2: #d95926;
+    --warn-ink: #fab219; --info: #6da7ec; --map-bg: #111d20; --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e181b; --surface: #152328; --surface-2: #1b2e34; --ink: #e6efef; --ink-2: #b4c4c7; --muted: #8fa1a5;
+  --line: #293b40; --accent: #2bbfaa; --accent-ink: #06201c; --accent-soft: #123a3a; --route-1: #3987e5; --route-2: #d95926;
+  --warn-ink: #fab219; --info: #6da7ec; --map-bg: #111d20; --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 18px 40px;
+}
+.wrap { max-width: 1440px; margin: 0 auto; display: grid; gap: 16px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: .005em; }
+button, input, select { font: inherit; color: inherit; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.label { font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+
+/* encabezado */
+.hd { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 24px; }
+.hd .eyebrow { margin: 0 0 4px; }
+.hd h1 { font-size: clamp(26px, 3.4vw, 38px); font-weight: 700; line-height: 1.05; }
+.hd .sub { margin: 6px 0 0; color: var(--ink-2); max-width: 70ch; }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; }
+.stats div { display: grid; }
+.stats dt { order: 2; font-size: 12px; color: var(--muted); }
+.stats dd { order: 1; margin: 0; font-family: var(--f-display); font-weight: 700; font-size: 22px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.rules { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.rule { background: var(--accent-soft); color: var(--ink); border-radius: 999px; padding: 4px 10px; font-size: 13px; }
+.rule b { font-weight: 600; }
+
+/* barra de filtros y exportables */
+.bar { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: grid; gap: 10px; box-shadow: var(--shadow); }
+.bar-row { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; min-width: 0; }
+.bar-row .grow { flex: 1 1 320px; min-width: 0; }
+.tb { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.chips.scroll { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+.chips.scroll .chip { flex: none; }
+.chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 11px; cursor: pointer; white-space: nowrap; font-size: 14px; display: inline-flex; gap: 6px; align-items: center; max-width: 100%; min-width: 0; }
+.chip .nm { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.chip:hover { background: var(--surface-2); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.chip .sw { width: 10px; height: 10px; border-radius: 50%; flex: none; box-shadow: 0 0 0 2px var(--surface); }
+.chip small { color: inherit; opacity: .7; font-size: 12px; }
+.chip.date { flex-direction: column; gap: 0; padding: 4px 10px; line-height: 1.1; border-radius: 10px; }
+.chip.date b { font-family: var(--f-display); font-size: 16px; }
+.chip.date span { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+.exports { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
+.btn { border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); border-radius: 10px; padding: 8px 12px; font-weight: 600; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; }
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn:disabled { opacity: .55; cursor: progress; }
+.btn svg { width: 16px; height: 16px; }
+.sel { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 7px 10px; font-weight: 600; }
+.chip.mes { font-weight: 600; }
+.chips .sep { width: 1px; align-self: stretch; background: var(--line); margin: 2px 4px; flex: none; }
+.cal thead th .cv { display: block; margin-top: 2px; font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
+.check { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--ink-2); cursor: pointer; }
+
+/* mapa + panel */
+.work { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start; }
+.mapbox { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); background: var(--map-bg); }
+#map { height: clamp(380px, 64vh, 680px); width: 100%; background: var(--map-bg); }
+#map.no-tiles { background-color: var(--map-bg); background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 48px 48px; }
+.map-note { position: absolute; left: 54px; top: 10px; z-index: 500; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; font-size: 12.5px; color: var(--ink-2); max-width: min(420px, calc(100% - 20px)); }
+.map-note[hidden] { display: none !important; }
+.legend { position: absolute; right: 10px; bottom: 34px; z-index: 500; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; font-size: 12.5px; display: grid; gap: 4px; box-shadow: var(--shadow); max-width: 230px; }
+.legend .row { display: flex; gap: 8px; align-items: center; }
+.legend .dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line); flex: none; }
+.legend .num { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; color: var(--surface); font-size: 11px; font-weight: 700; flex: none; }
+.legend .dash { width: 18px; border-top: 3px dotted var(--ink-2); flex: none; }
+.legend .ring { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--ink-2); background: color-mix(in srgb, var(--ink-2) 12%, transparent); flex: none; }
+.legend .bang { width: 16px; height: 16px; border-radius: 50%; background: var(--crit); color: #fff; font-weight: 700; font-size: 11px; display: grid; place-items: center; flex: none; }
+.legend[hidden] { display: none !important; }
+.legend-toggle { position: absolute; right: 10px; bottom: 34px; z-index: 501; box-shadow: var(--shadow); }
+.legend .close { justify-self: end; margin-top: 2px; }
+.map-fallback { display: grid; place-items: center; height: 100%; color: var(--ink-2); padding: 24px; text-align: center; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 14px; display: grid; gap: 12px; max-height: clamp(380px, 64vh, 680px); overflow: auto; min-width: 0; }
+.panel h2 { font-size: 20px; }
+.panel .lead { color: var(--ink-2); font-size: 14px; margin: 2px 0 0; }
+.card { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 8px; background: var(--surface); }
+.card-h { display: flex; gap: 10px; align-items: flex-start; }
+.card-h .bar-c { width: 6px; align-self: stretch; border-radius: 3px; flex: none; }
+.card-h .who { min-width: 0; }
+.card-h .code { font-family: var(--f-mono); font-size: 12.5px; color: var(--ink-2); }
+.card-h .name { font-weight: 600; font-size: 15.5px; line-height: 1.2; }
+.card .meta { font-size: 13px; color: var(--ink-2); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.visits { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.visit { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 6px 0; }
+.visit .n { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 12.5px; }
+.visit .t { min-width: 0; }
+.visit .t b { display: block; font-weight: 600; line-height: 1.2; }
+.visit .t small { display: block; color: var(--ink-2); font-size: 12.5px; overflow-wrap: anywhere; }
+.visit .hr { font-family: var(--f-mono); font-size: 12.5px; white-space: nowrap; text-align: right; }
+.visit .hr a { display: block; font-family: var(--f-body); font-size: 12.5px; margin-top: 2px; }
+.walk { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12.5px; padding: 0 0 0 7px; }
+.walk::before { content: ""; height: 18px; border-left: 3px dotted var(--muted); margin-right: 10px; }
+.tag { display: inline-flex; gap: 4px; align-items: center; border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 600; }
+.tag.alta { background: color-mix(in srgb, var(--crit) 16%, transparent); color: var(--crit); }
+.tag.media { background: color-mix(in srgb, var(--warn) 22%, transparent); color: var(--warn-ink); }
+.tag.info { background: color-mix(in srgb, var(--info) 16%, transparent); color: var(--info); }
+.zlist { display: grid; gap: 6px; }
+.zitem { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; text-align: left; width: 100%; }
+.zitem:hover { background: var(--surface-2); }
+.zitem[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.zitem .zc { font-family: var(--f-mono); font-weight: 600; font-size: 13px; border-radius: 8px; padding: 4px 0; text-align: center; color: #fff; }
+.zitem .zt { min-width: 0; }
+.zitem .zt b { display: block; font-weight: 600; font-size: 14px; line-height: 1.2; }
+.zitem .zt small { display: block; color: var(--ink-2); font-size: 12.5px; overflow-wrap: anywhere; }
+.zitem .zd { font-size: 12px; color: var(--ink-2); text-align: right; font-variant-numeric: tabular-nums; }
+.link-row { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 13.5px; }
+.btn-text { background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.outliers { border: 1px dashed var(--line); border-radius: 10px; padding: 8px 10px; font-size: 13px; color: var(--ink-2); display: grid; gap: 4px; }
+
+/* calendario */
+.sec > *, .bar > *, .tabpanel { min-width: 0; }
+.sec { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.sec-h { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.sec-h h2 { font-size: 21px; }
+.sec-h p { margin: 0; color: var(--ink-2); font-size: 13.5px; }
+.scroll-x { overflow-x: auto; min-width: 0; }
+table.cal { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 980px; font-size: 13px; }
+.cal th, .cal td { border-bottom: 1px solid var(--line); padding: 4px; text-align: center; vertical-align: middle; }
+.cal thead th { position: sticky; top: 0; background: var(--surface); font-weight: 600; color: var(--ink-2); padding: 6px 4px; }
+.cal thead th .d { display: block; font-family: var(--f-display); font-size: 18px; color: var(--ink); line-height: 1; }
+.cal thead th .w { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.cal thead th.off { color: var(--muted); }
+.cal thead th.off .d { color: var(--muted); }
+.cal thead th.sel { background: var(--accent-soft); border-radius: 8px 8px 0 0; }
+.cal th.rh { position: sticky; left: 0; z-index: 2; background: var(--surface); text-align: left; min-width: 210px; padding: 6px 10px 6px 4px; }
+.cal th.rh .c { display: flex; gap: 8px; align-items: center; font-family: var(--f-mono); font-size: 12.5px; color: var(--ink); }
+.cal th.rh small { display: block; color: var(--ink-2); font-weight: 400; font-size: 12.5px; padding-left: 18px; }
+.cal tr.inview th.rh { box-shadow: inset 3px 0 0 var(--ink); }
+.cal td.off { background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--line) 55%, transparent) 6px 7px); }
+.cal td.sel { background: color-mix(in srgb, var(--accent-soft) 70%, transparent); }
+.cell { width: 100%; min-width: 64px; border: 1px solid transparent; border-radius: 8px; background: transparent; padding: 4px 2px; cursor: pointer; display: grid; gap: 1px; justify-items: center; }
+.cell:hover { background: var(--surface-2); border-color: var(--line); }
+.cell[aria-pressed="true"] { border-color: var(--ink); background: var(--surface); }
+.cell b { font-family: var(--f-mono); font-size: 12.5px; font-weight: 600; }
+.cell .dots { display: flex; gap: 3px; }
+.cell .dots i { width: 6px; height: 6px; border-radius: 50%; display: block; }
+.cell small { font-size: 10.5px; color: var(--ink-2); max-width: 86px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cell.rep b::after { content: "↻"; font-family: var(--f-body); margin-left: 3px; color: var(--muted); font-weight: 400; }
+.cal-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--ink-2); }
+
+/* pestañas */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tab { background: none; border: none; border-bottom: 3px solid transparent; padding: 8px 12px; cursor: pointer; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.tabpanel[hidden] { display: none !important; }
+.search { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 7px 10px; width: min(360px, 100%); }
+table.grid { border-collapse: collapse; width: 100%; min-width: 1100px; font-size: 13px; }
+.grid th { text-align: left; font-weight: 600; color: var(--ink-2); background: var(--surface-2); padding: 7px 8px; position: sticky; top: 0; white-space: nowrap; }
+.grid td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.grid td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.grid tbody tr { cursor: pointer; }
+.grid tbody tr:hover { background: var(--surface-2); }
+.tbl-box { max-height: 520px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+.nov { display: grid; gap: 8px; }
+.nov-item { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 12px; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.nov-item h3 { font-size: 16px; }
+.nov-item p { margin: 3px 0 0; color: var(--ink-2); font-size: 14px; }
+.nov-item .do { color: var(--ink); }
+.prio { align-self: start; text-align: center; border-radius: 999px; padding: 3px 8px; font-size: 12px; font-weight: 700; }
+.prio.Alta { background: color-mix(in srgb, var(--crit) 16%, transparent); color: var(--crit); }
+.prio.Media { background: color-mix(in srgb, var(--warn) 24%, transparent); color: var(--warn-ink); }
+.prio.Baja { background: var(--surface-2); color: var(--ink-2); }
+.prio.Opcional { background: color-mix(in srgb, var(--info) 14%, transparent); color: var(--info); }
+.asig input, .asig select { border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; background: var(--surface); width: 100%; min-width: 0; }
+.asig input.changed { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.asig td { vertical-align: middle; }
+.asig-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.hint { font-size: 13px; color: var(--ink-2); margin: 0; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--surface); padding: 9px 14px; border-radius: 10px; font-size: 14px; z-index: 2000; box-shadow: var(--shadow); max-width: calc(100% - 32px); }
+.toast[hidden] { display: none !important; }
+
+/* Leaflet con los tokens de la página */
+.leaflet-container { font-family: var(--f-body); background: var(--map-bg); }
+.leaflet-tooltip.ztip { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 7px 9px; font-size: 13px; line-height: 1.35; max-width: 280px; white-space: normal; }
+.leaflet-tooltip.ztip::before { display: none; }
+.ztip b { font-weight: 600; }
+.ztip .k { color: var(--ink-2); }
+.zlabel span { display: inline-block; transform: translate(-50%, -100%); font-family: var(--f-mono); font-weight: 600; font-size: 12px; background: var(--surface); color: var(--ink); border: 1.5px solid var(--c); border-radius: 6px; padding: 0 5px; white-space: nowrap; box-shadow: var(--shadow); }
+.zlabel.dim span { opacity: .35; }
+#map.z-low .zlabel { display: none; }
+.num-pin span { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 13px; border: 2px solid var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, .35); }
+.alert-pin span { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 12px; border: 2px solid var(--surface); }
+.alert-pin.alta span { background: var(--crit); }
+.alert-pin.media span { background: var(--warn); color: #0b0b0b; }
+.leaflet-control-scale-line { background: color-mix(in srgb, var(--surface) 85%, transparent); color: var(--ink); border-color: var(--ink-2); }
+.leaflet-bar a { background: var(--surface); color: var(--ink); border-bottom-color: var(--line); }
+.leaflet-control-attribution { background: color-mix(in srgb, var(--surface) 80%, transparent) !important; color: var(--ink-2); }
+#map.dark-tiles .leaflet-tile-pane, #map.dark-tiles .leaflet-labels-pane { filter: invert(1) hue-rotate(180deg) brightness(.95) contrast(.88) saturate(.55); }
+.leaflet-control-layers { background: var(--surface); color: var(--ink); border-radius: 10px !important; box-shadow: var(--shadow) !important; border: 1px solid var(--line) !important; }
+.leaflet-control-layers-toggle { width: 38px !important; height: 38px !important; background-size: 22px 22px; background-position: center; background-repeat: no-repeat;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a2e35' stroke-width='1.8' stroke-linejoin='round'%3E%3Cpath d='M12 3 2.5 8 12 13l9.5-5L12 3Z'/%3E%3Cpath d='m2.5 12 9.5 5 9.5-5'/%3E%3Cpath d='m2.5 16 9.5 5 9.5-5'/%3E%3C/svg%3E") !important; }
+:root[data-theme="dark"] .leaflet-control-layers-toggle { filter: invert(1); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .leaflet-control-layers-toggle { filter: invert(1); } }
+.leaflet-control-layers-expanded { padding: 8px 12px 8px 8px; font-size: 13.5px; }
+.leaflet-control-layers label { display: flex; align-items: center; gap: 6px; margin: 2px 0; cursor: pointer; }
+.leaflet-control-layers-base input { accent-color: var(--accent); margin: 0; }
+.leaflet-control-attribution a { color: var(--ink-2); }
+
+@media (max-width: 1080px) {
+  .work { grid-template-columns: minmax(0, 1fr); }
+  .panel { max-height: none; }
+}
+@media (max-width: 640px) {
+  body { font-size: 14.5px; }
+  .stats dd { font-size: 19px; }
+  .exports { margin-left: 0; }
+  .nov-item { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="hd">
+    <div>
+      <p class="label eyebrow">CIN · CELYA S.A.S · Promotores de apoyo Movistar</p>
+      <h1>Zonificación a pie de promotores</h1>
+      <p class="sub" id="subtitle">Programación del viernes 6 de noviembre al jueves 31 de diciembre de 2026.</p>
+    </div>
+    <dl class="stats" id="stats"></dl>
+  </header>
+
+  <div class="rules" id="rules"></div>
+
+  <section class="bar" aria-label="Filtros y exportables">
+    <div class="bar-row">
+      <div class="tb"><span class="label">Ciudad</span><div class="chips" id="cityChips" role="group" aria-label="Ciudad"></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="tb" id="routeGroup"><span class="label">Ruta</span><div class="chips" id="routeChips" role="group" aria-label="Ruta"></div></div>
+      <div class="exports">
+        <label class="check"><input type="checkbox" id="onlyView"> Solo la ciudad en pantalla</label>
+        <select class="sel" id="planMes" aria-label="Mes del plan de trabajo"><option value="11">Noviembre</option><option value="12">Diciembre</option></select>
+        <button class="btn" id="btnPlan" type="button" title="Plan de trabajo del mes elegido, con fechas, horas y georreferencia, para cargar en DayByDay">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          Plan de trabajo DBD (.xlsx)
+        </button>
+        <button class="btn ghost" id="btnZona" type="button" title="Zonificación, programación, asignación y novedades">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          Zonificación y programación (.xlsx)
+        </button>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="tb grow"><span class="label">Fecha</span><div class="chips scroll" id="dateChips" role="group" aria-label="Fecha"></div></div>
+    </div>
+  </section>
+
+  <section class="work">
+    <div class="mapbox">
+      <div id="map" role="region" aria-label="Mapa de zonas y PDV"></div>
+      <div class="legend" id="legend" aria-label="Convenciones del mapa"></div>
+      <button class="chip legend-toggle" id="legendToggle" type="button" aria-expanded="true" hidden>Convenciones</button>
+      <div class="map-note" id="mapNote" hidden>Esta vista no carga el fondo de calles. Abre el archivo HTML en tu navegador para ver las calles, o usa los enlaces “Ruta a pie” de Google Maps.</div>
+    </div>
+    <aside class="panel" id="panel" aria-live="polite"></aside>
+  </section>
+
+  <section class="sec" aria-labelledby="calTitle">
+    <div class="sec-h">
+      <h2 id="calTitle">Calendario de la programación</h2>
+      <p>Cada celda es el día del ciclo que le toca a la ruta. Toca una celda para verla en el mapa.</p>
+    </div>
+    <div class="cal-legend" id="calLegend"></div>
+    <div class="scroll-x"><table class="cal" id="cal"></table></div>
+  </section>
+
+  <section class="sec">
+    <div class="tabs" role="tablist" aria-label="Detalle">
+      <button class="tab" role="tab" id="t-zon" aria-controls="p-zon" aria-selected="true">Zonificación (72 PDV)</button>
+      <button class="tab" role="tab" id="t-nov" aria-controls="p-nov" aria-selected="false">Novedades</button>
+      <button class="tab" role="tab" id="t-asi" aria-controls="p-asi" aria-selected="false">Asignación de personas</button>
+      <button class="tab" role="tab" id="t-reg" aria-controls="p-reg" aria-selected="false">Cómo se armó</button>
+    </div>
+    <div class="tabpanel" role="tabpanel" id="p-zon" aria-labelledby="t-zon">
+      <div style="display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin:10px 0">
+        <input class="search" id="q" type="search" placeholder="Buscar PDV, dirección, ruta, sector o ID…" aria-label="Buscar en la zonificación">
+        <span class="hint" id="qCount"></span>
+      </div>
+      <div class="tbl-box"><table class="grid" id="zt"></table></div>
+    </div>
+    <div class="tabpanel" role="tabpanel" id="p-nov" aria-labelledby="t-nov" hidden><div class="nov" id="nov" style="margin-top:10px"></div></div>
+    <div class="tabpanel" role="tabpanel" id="p-asi" aria-labelledby="t-asi" hidden>
+      <p class="hint" style="margin:10px 0">Si cambia el promotor de una ruta, elige la persona de la planta activa o escribe su cédula, ID de DayByDay y nombre. El mapa, el calendario y los dos exportables salen con la persona nueva. El cambio se guarda en este navegador; para dejarlo fijo para todos, cámbialo también en la hoja ASIGNACION del Excel maestro.</p>
+      <div class="scroll-x"><table class="grid asig" id="asig" style="min-width:900px"></table></div>
+      <div class="asig-actions" style="margin-top:10px">
+        <button class="btn" id="btnSaveAsig" type="button">Guardar en este navegador</button>
+        <button class="btn ghost" id="btnResetAsig" type="button">Volver a la asignación original</button>
+        <span class="hint" id="asigMsg"></span>
+      </div>
+    </div>
+    <div class="tabpanel" role="tabpanel" id="p-reg" aria-labelledby="t-reg" hidden>
+      <div style="margin-top:10px;display:grid;gap:8px;max-width:90ch;color:var(--ink-2);font-size:14.5px" id="howto"></div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script id="zdata" type="application/json">{"generado":"05/11/2026","cliente":"CELYA S.A.S","dates":["2026-11-06","2026-11-07","2026-11-09","2026-11-10","2026-11-11","2026-11-12","2026-11-13","2026-11-14","2026-11-17","2026-11-18","2026-11-19","2026-11-20","2026-11-21","2026-11-23","2026-11-24","2026-11-25","2026-11-26","2026-11-27","2026-11-28","2026-11-30","2026-12-01","2026-12-02","2026-12-03","2026-12-04","2026-12-05","2026-12-07","2026-12-09","2026-12-10","2026-12-11","2026-12-12","2026-12-14","2026-12-15","2026-12-16","2026-12-17","2026-12-18","2026-12-19","2026-12-21","2026-12-22","2026-12-23","2026-12-24","2026-12-26","2026-12-28","2026-12-29","2026-12-30","2026-12-31"],"cal":[{"iso":"2026-11-06","kind":"lab","idx":0},{"iso":"2026-11-07","kind":"lab","idx":1},{"iso":"2026-11-08","kind":"domingo","idx":null},{"iso":"2026-11-09","kind":"lab","idx":2},{"iso":"2026-11-10","kind":"lab","idx":3},{"iso":"2026-11-11","kind":"lab","idx":4},{"iso":"2026-11-12","kind":"lab","idx":5},{"iso":"2026-11-13","kind":"lab","idx":6},{"iso":"2026-11-14","kind":"lab","idx":7},{"iso":"2026-11-15","kind":"domingo","idx":null},{"iso":"2026-11-16","kind":"festivo","idx":null},{"iso":"2026-11-17","kind":"lab","idx":8},{"iso":"2026-11-18","kind":"lab","idx":9},{"iso":"2026-11-19","kind":"lab","idx":10},{"iso":"2026-11-20","kind":"lab","idx":11},{"iso":"2026-11-21","kind":"lab","idx":12},{"iso":"2026-11-22","kind":"domingo","idx":null},{"iso":"2026-11-23","kind":"lab","idx":13},{"iso":"2026-11-24","kind":"lab","idx":14},{"iso":"2026-11-25","kind":"lab","idx":15},{"iso":"2026-11-26","kind":"lab","idx":16},{"iso":"2026-11-27","kind":"lab","idx":17},{"iso":"2026-11-28","kind":"lab","idx":18},{"iso":"2026-11-29","kind":"domingo","idx":null},{"iso":"2026-11-30","kind":"lab","idx":19},{"iso":"2026-12-01","kind":"lab","idx":20},{"iso":"2026-12-02","kind":"lab","idx":21},{"iso":"2026-12-03","kind":"lab","idx":22},{"iso":"2026-12-04","kind":"lab","idx":23},{"iso":"2026-12-05","kind":"lab","idx":24},{"iso":"2026-12-06","kind":"domingo","idx":null},{"iso":"2026-12-07","kind":"lab","idx":25},{"iso":"2026-12-08","kind":"festivo","idx":null},{"iso":"2026-12-09","kind":"lab","idx":26},{"iso":"2026-12-10","kind":"lab","idx":27},{"iso":"2026-12-11","kind":"lab","idx":28},{"iso":"2026-12-12","kind":"lab","idx":29},{"iso":"2026-12-13","kind":"domingo","idx":null},{"iso":"2026-12-14","kind":"lab","idx":30},{"iso":"2026-12-15","kind":"lab","idx":31},{"iso":"2026-12-16","kind":"lab","idx":32},{"iso":"2026-12-17","kind":"lab","idx":33},{"iso":"2026-12-18","kind":"lab","idx":34},{"iso":"2026-12-19","kind":"lab","idx":35},{"iso":"2026-12-20","kind":"domingo","idx":null},{"iso":"2026-12-21","kind":"lab","idx":36},{"iso":"2026-12-22","kind":"lab","idx":37},{"iso":"2026-12-23","kind":"lab","idx":38},{"iso":"2026-12-24","kind":"lab","idx":39},{"iso":"2026-12-25","kind":"festivo","idx":null},{"iso":"2026-12-26","kind":"lab","idx":40},{"iso":"2026-12-27","kind":"domingo","idx":null},{"iso":"2026-12-28","kind":"lab","idx":41},{"iso":"2026-12-29","kind":"lab","idx":42},{"iso":"2026-12-30","kind":"lab","idx":43},{"iso":"2026-12-31","kind":"lab","idx":44}],"cierres":[10,21,32,43],"reglas":{"maxMin":8,"maxPdv":3,"jornada":"08:00–17:00","dias":"lunes a sábado","festivos":["2026-11-16","2026-12-08","2026-12-25"]},"routes":[{"code":"CEL-BOG-01","city":"BOGOTA","depto":"DISTRITO CAPITAL","ced":"","idf":31741,"nombre":"Laura Vanessa Pinerez Martines","cargo":"Asesor","jefe":"Buitrago Loaiza Yazmin","ciclo":11,"slot":1,"muniDbd":"BOGOTA"},{"code":"CEL-BOG-02","city":"BOGOTA","depto":"DISTRITO CAPITAL","ced":"","idf":32223,"nombre":"Maryluz Alzate Morales","cargo":"Asesor","jefe":"Buitrago Loaiza Yazmin","ciclo":8,"slot":2,"muniDbd":"BOGOTA"},{"code":"CEL-BUC-01","city":"BUCARAMANGA","depto":"SANTANDER","ced":"","idf":32250,"nombre":"Mariluz Ramirez Quijano","cargo":"Asesor","jefe":"Buitrago Loaiza Yazmin","ciclo":8,"slot":1,"muniDbd":"BUCARAMANGA"},{"code":"CEL-BCB-01","city":"BARRANCABERMEJA","depto":"SANTANDER","ced":"","idf":31733,"nombre":"Perez Neira Linda Geraldine","cargo":"Asesor","jefe":"Buitrago Loaiza Yazmin","ciclo":2,"slot":1,"muniDbd":"BUCARAMANGA"},{"code":"CEL-CAL-01","city":"CALI","depto":"VALLE DEL CAUCA","ced":"","idf":31755,"nombre":"Anyi Paola Nazarit Leon","cargo":"Asesor","jefe":"Buitrago Loaiza Yazmin","ciclo":5,"slot":1,"muniDbd":"BOGOTA"},{"code":"CEL-FAC-01","city":"FACATATIVA","depto":"CUNDINAMARCA","ced":"","idf":31736,"nombre":"Cristian Duban Romero Vergara","cargo":"Asesor","jefe":"Buitrago Loaiza Yazmin","ciclo":2,"slot":1,"muniDbd":"BOGOTA"},{"code":"CEL-ARA-01","city":"ARAUCA","depto":"ARAUCA","ced":"","idf":32255,"nombre":"Mauricio Alexander Arrieta Salas","cargo":"Asesor","jefe":"Buitrago Loaiza Yazmin","ciclo":3,"slot":1,"muniDbd":"VILLAVICENCIO"},{"code":"CEL-NEI-01","city":"NEIVA","depto":"HUILA","ced":"","idf":32126,"nombre":"Santiago Callejas Zuñiga","cargo":"Asesor","jefe":"Buitrago Loaiza Yazmin","ciclo":2,"slot":1,"muniDbd":"IBAGUE"},{"code":"CEL-IBA-01","city":"IBAGUE","depto":"TOLIMA","ced":"","idf":31667,"nombre":"Angie Paola Ardila Bolaños","cargo":"Asesor","jefe":"Buitrago Loaiza Yazmin","ciclo":1,"slot":1,"muniDbd":"IBAGUE"}],"pdvs":[{"id":327062,"site":3832,"name":"Accesorios Jd","addr":"CL 162 7 F 09 San Cristobal Norte","sector":"SAN CRISTOBAL NORTE","city":"BOGOTA","regional":"CENTRO","lat":4.736945,"lon":-74.023539,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D01","zn":1,"ord":1,"nz":3,"mprev":null,"dprev":null,"near":"Directo Celulares 162","nearMin":4.7,"meta":10,"metaIr":7,"metaOct":5,"resOct":6,"alert":null,"note":null,"outlier":false},{"id":327059,"site":1810,"name":"Directo Celulares 162","addr":"CL 162 7 G 62","sector":"SAN CRISTOBAL NORTE","city":"BOGOTA","regional":"CENTRO","lat":4.738006,"lon":-74.026448,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D01","zn":1,"ord":2,"nz":3,"mprev":4.7,"dprev":352.0,"near":"Tuce San Cristobal","nearMin":0.9,"meta":12,"metaIr":9,"metaOct":7,"resOct":2,"alert":null,"note":null,"outlier":false},{"id":327064,"site":4912,"name":"Tuce San Cristobal","addr":"KR 8 # 162-26 San Cristobal Norte","sector":"SAN CRISTOBAL NORTE","city":"BOGOTA","regional":"CENTRO","lat":4.738269,"lon":-74.02652,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D01","zn":1,"ord":3,"nz":3,"mprev":0.9,"dprev":70.0,"near":"Directo Celulares 162","nearMin":0.9,"meta":10,"metaIr":7,"metaOct":5,"resOct":1,"alert":null,"note":null,"outlier":false},{"id":327058,"site":2762,"name":"Comunicaciones Murcia","addr":"CL 163a #8g-11 local 59","sector":"SAN CRISTOBAL NORTE","city":"BOGOTA","regional":"CENTRO","lat":4.739937,"lon":-74.030236,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D02","zn":2,"ord":1,"nz":2,"mprev":null,"dprev":null,"near":"Variedades Murcia","nearMin":0.0,"meta":10,"metaIr":8,"metaOct":6,"resOct":7,"alert":null,"note":"Misma dirección que Variedades Murcia","outlier":false},{"id":327061,"site":2763,"name":"Variedades Murcia","addr":"CL 163a #8g-11 local 3 y 4 San Cristobal Norte","sector":"SAN CRISTOBAL NORTE","city":"BOGOTA","regional":"CENTRO","lat":4.739937,"lon":-74.030236,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D02","zn":2,"ord":2,"nz":2,"mprev":0.0,"dprev":0.0,"near":"Comunicaciones Murcia","nearMin":0.0,"meta":5,"metaIr":3,"metaOct":2,"resOct":3,"alert":null,"note":"Misma dirección que Comunicaciones Murcia","outlier":false},{"id":327060,"site":1811,"name":"Directo Celulares La 163 A","addr":"CL 163 A 8 G 39 LOCAL 2 San Cristobal Norte","sector":"SAN CRISTOBAL NORTE","city":"BOGOTA","regional":"CENTRO","lat":4.740109,"lon":-74.030532,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D03","zn":3,"ord":1,"nz":2,"mprev":null,"dprev":null,"near":"Comunicaciones Murcia","nearMin":0.6,"meta":5,"metaIr":5,"metaOct":3,"resOct":0,"alert":null,"note":null,"outlier":false},{"id":327063,"site":1815,"name":"Directo Celulares Sc","addr":"KR 8G # 161A-44 San Cristobal Norte","sector":"SAN CRISTOBAL NORTE","city":"BOGOTA","regional":"CENTRO","lat":4.73884,"lon":-74.030272,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D03","zn":3,"ord":2,"nz":2,"mprev":2.6,"dprev":193.0,"near":"Comunicaciones Murcia","nearMin":2.0,"meta":15,"metaIr":13,"metaOct":10,"resOct":1,"alert":null,"note":null,"outlier":false},{"id":327057,"site":3796,"name":"Redcelco","addr":"CL 72 68 C 10 P 2","sector":"LAS FERIAS","city":"BOGOTA","regional":"CENTRO","lat":4.679472,"lon":-74.087289,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D04","zn":4,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Mobil Store Jr Bahia 7","nearMin":110.0,"meta":13,"metaIr":11,"metaOct":8,"resOct":3,"alert":null,"note":null,"outlier":false},{"id":327055,"site":3315,"name":"Mobil Store Jr Bahia 7","addr":"KR 100 # 18-59 BAHIA 07 Fontibon Centro","sector":"FONTIBON CENTRO","city":"BOGOTA","regional":"CENTRO","lat":4.674872,"lon":-74.144379,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D05","zn":5,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Mil Locuras","nearMin":59.4,"meta":10,"metaIr":6,"metaOct":4,"resOct":1,"alert":null,"note":null,"outlier":false},{"id":327056,"site":1217,"name":"Mil Locuras","addr":"KR 135 17 D - 35 Fontibon Puente Grande","sector":"FONTIBON PUENTE GRANDE","city":"BOGOTA","regional":"CENTRO","lat":4.696229,"lon":-74.166708,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D06","zn":6,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Mobil Store Jr Bahia 7","nearMin":59.4,"meta":5,"metaIr":1,"metaOct":0,"resOct":0,"alert":null,"note":null,"outlier":false},{"id":327044,"site":1937,"name":"Comunicaciones Moviles D & V Patio Bonito","addr":"CL 42ª SUR #93-22 SUR BARRIO Patio Bonito Bogota","sector":"PATIO BONITO","city":"BOGOTA","regional":"CENTRO","lat":4.641893,"lon":-74.174358,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D07","zn":7,"ord":1,"nz":3,"mprev":null,"dprev":null,"near":"El Mismo Sitio.com Cr 95","nearMin":3.6,"meta":28,"metaIr":26,"metaOct":20,"resOct":16,"alert":null,"note":null,"outlier":false},{"id":327049,"site":4692,"name":"El Mismo Sitio.com Cr 95","addr":"KR 95 42 A 12 SUR Patio Bonito","sector":"PATIO BONITO","city":"BOGOTA","regional":"CENTRO","lat":4.643652,"lon":-74.175645,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D07","zn":7,"ord":2,"nz":3,"mprev":3.6,"dprev":267.0,"near":"Cursor_Bellavista","nearMin":1.5,"meta":10,"metaIr":5,"metaOct":3,"resOct":5,"alert":null,"note":null,"outlier":false},{"id":327045,"site":2332,"name":"Cursor_Bellavista","addr":"CL 42A SUR # 96 06 piso1","sector":"PATIO BONITO","city":"BOGOTA","regional":"CENTRO","lat":4.644524,"lon":-74.175969,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D07","zn":7,"ord":3,"nz":3,"mprev":1.5,"dprev":111.0,"near":"El Mismo Sitio.com Cr 95","nearMin":1.5,"meta":90,"metaIr":88,"metaOct":74,"resOct":58,"alert":null,"note":null,"outlier":false},{"id":327046,"site":3887,"name":"Dagocel 1","addr":"CL 38 sur # 86c-79 Patio Bonito","sector":"PATIO BONITO","city":"BOGOTA","regional":"CENTRO","lat":4.635641,"lon":-74.163988,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D08","zn":8,"ord":1,"nz":2,"mprev":null,"dprev":null,"near":"Msg Cra 38","nearMin":6.4,"meta":10,"metaIr":7,"metaOct":5,"resOct":3,"alert":null,"note":null,"outlier":false},{"id":327048,"site":5148,"name":"Msg Cra 38","addr":"KR 38 sur #88-33 Patio Bonito","sector":"PATIO BONITO","city":"BOGOTA","regional":"CENTRO","lat":4.63791,"lon":-74.166764,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D08","zn":8,"ord":2,"nz":2,"mprev":6.4,"dprev":479.0,"near":"Dagocel 1","nearMin":6.4,"meta":10,"metaIr":4,"metaOct":3,"resOct":0,"alert":null,"note":null,"outlier":false},{"id":327050,"site":4339,"name":"Msg Cra 87","addr":"KR 87 #1-78 Patio Bonito","sector":"PATIO BONITO","city":"BOGOTA","regional":"CENTRO","lat":4.640234,"lon":-74.159312,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D09","zn":9,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Dagocel 1","nearMin":11.2,"meta":10,"metaIr":7,"metaOct":5,"resOct":3,"alert":null,"note":null,"outlier":false},{"id":327051,"site":4353,"name":"All Tecnhologys1","addr":"KR 18 s # 18 83 Restrepo","sector":"RESTREPO","city":"BOGOTA","regional":"CENTRO","lat":4.585228,"lon":-74.1019,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D10","zn":10,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Blue Tecnology","nearMin":54.3,"meta":10,"metaIr":4,"metaOct":3,"resOct":5,"alert":{"level":"info","short":"Oportunidad de reasignación","text":"OPORTUNIDAD: queda a ~170 m de Techmovil Store Restrepo (ruta CEL-BOG-02). Si se pasa a esa ruta, entra en su día de Restrepo y libera 1 día del ciclo de CEL-BOG-01."},"note":null,"outlier":false},{"id":327053,"site":4591,"name":"Gs Cell S.a.s Nodo","addr":"CL 13 # 15-73 PISO 1 LOCAL 115-116","sector":"CENTRO CALLE 13","city":"BOGOTA","regional":"CENTRO","lat":4.604579,"lon":-74.081238,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D11","zn":11,"ord":1,"nz":3,"mprev":null,"dprev":null,"near":"Blue Tecnology","nearMin":0.5,"meta":8,"metaIr":2,"metaOct":1,"resOct":2,"alert":null,"note":null,"outlier":false},{"id":327052,"site":3191,"name":"Blue Tecnology","addr":"CL 13 #15 - 61 LC A-026","sector":"CENTRO CALLE 13","city":"BOGOTA","regional":"CENTRO","lat":4.604445,"lon":-74.081255,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D11","zn":11,"ord":2,"nz":3,"mprev":0.5,"dprev":39.0,"near":"Gs Cell S.a.s Nodo","nearMin":0.5,"meta":55,"metaIr":54,"metaOct":44,"resOct":52,"alert":null,"note":null,"outlier":false},{"id":327054,"site":3224,"name":"The Digital World","addr":"CL 13 #15-17","sector":"CENTRO CALLE 13","city":"BOGOTA","regional":"CENTRO","lat":4.604192,"lon":-74.080868,"route":"CEL-BOG-01","zone":"CEL-BOG-01-D11","zn":11,"ord":3,"nz":3,"mprev":0.7,"dprev":52.0,"near":"Blue Tecnology","nearMin":0.7,"meta":10,"metaIr":8,"metaOct":6,"resOct":3,"alert":null,"note":null,"outlier":false},{"id":327035,"site":2661,"name":"Cursor_Parquesbgt","addr":"CL 80 BIS SUR 94-75","sector":"BOSA SAN BERNARDINO","city":"BOGOTA","regional":"CENTRO","lat":4.627641,"lon":-74.208854,"route":"CEL-BOG-02","zone":"CEL-BOG-02-D01","zn":1,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Celltech Armo Bosa","nearMin":29.1,"meta":50,"metaIr":48,"metaOct":40,"resOct":21,"alert":null,"note":null,"outlier":false},{"id":327034,"site":4974,"name":"Smartcell 20 Bosa San Miguel","addr":"KR 93 A 54 G 16 SUR","sector":"BOSA PORVENIR","city":"BOGOTA","regional":"CENTRO","lat":4.63425,"lon":-74.189202,"route":"CEL-BOG-02","zone":"CEL-BOG-02-D02","zn":2,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Celltech Armo Bosa","nearMin":20.3,"meta":10,"metaIr":7,"metaOct":5,"resOct":3,"alert":null,"note":null,"outlier":false},{"id":327033,"site":5061,"name":"Celltech Armo Bosa","addr":"KR 88c #63-52","sector":"BOSA LA LIBERTAD","city":"BOGOTA","regional":"CENTRO","lat":4.62488,"lon":-74.193988,"route":"CEL-BOG-02","zone":"CEL-BOG-02-D03","zn":3,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Smartcell 20 Bosa San Miguel","nearMin":20.3,"meta":5,"metaIr":4,"metaOct":3,"resOct":0,"alert":null,"note":null,"outlier":false},{"id":327031,"site":3173,"name":"Worldphone","addr":"CL 65 sur # 80 - 31","sector":"BOSA CENTRO","city":"BOGOTA","regional":"CENTRO","lat":4.607076,"lon":-74.184825,"route":"CEL-BOG-02","zone":"CEL-BOG-02-D04","zn":4,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Celltech Armo Bosa","nearMin":38.6,"meta":5,"metaIr":4,"metaOct":3,"resOct":2,"alert":null,"note":null,"outlier":false},{"id":327029,"site":2152,"name":"Logistikos El Ensueño","addr":"CL 59C SUR No 61-21","sector":"BOSA ATALAYAS","city":"BOGOTA","regional":"CENTRO","lat":4.582632,"lon":-74.155814,"route":"CEL-BOG-02","zone":"CEL-BOG-02-D05","zn":5,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Nextfon 1","nearMin":39.1,"meta":25,"metaIr":22,"metaOct":17,"resOct":10,"alert":null,"note":null,"outlier":false},{"id":327038,"site":4890,"name":"Portal Byte Dg 46","addr":"DG 46 SUR #53-37 Venecia","sector":"VENECIA","city":"BOGOTA","regional":"CENTRO","lat":4.593748,"lon":-74.138585,"route":"CEL-BOG-02","zone":"CEL-BOG-02-D06","zn":6,"ord":1,"nz":3,"mprev":null,"dprev":null,"near":"Smarttech 149 Venecia","nearMin":0.0,"meta":8,"metaIr":2,"metaOct":1,"resOct":2,"alert":null,"note":"Mismo punto que Smarttech 149 (mismo local/CC)","outlier":false},{"id":327039,"site":4131,"name":"Smarttech 149 Venecia","addr":"DG 46 sur 53-37 lc 148-149","sector":"VENECIA","city":"BOGOTA","regional":"CENTRO","lat":4.593748,"lon":-74.138585,"route":"CEL-BOG-02","zone":"CEL-BOG-02-D06","zn":6,"ord":2,"nz":3,"mprev":0.0,"dprev":0.0,"near":"Portal Byte Dg 46","nearMin":0.0,"meta":8,"metaIr":2,"metaOct":1,"resOct":1,"alert":null,"note":"Mismo punto que Portal Byte Dg 46","outlier":false},{"id":327042,"site":3952,"name":"Nextfon 1","addr":"DG 46 SUR # 53 - 90 Venecia","sector":"VENECIA","city":"BOGOTA","regional":"CENTRO","lat":4.594133,"lon":-74.139017,"route":"CEL-BOG-02","zone":"CEL-BOG-02-D06","zn":6,"ord":3,"nz":3,"mprev":0.7,"dprev":56.0,"near":"Portal Byte Dg 46","nearMin":0.7,"meta":4,"metaIr":1,"metaOct":0,"resOct":0,"alert":null,"note":null,"outlier":false},{"id":327041,"site":2440,"name":"Vaentec Venecia","addr":"DG 45 B 52 C 92 sur","sector":"VENECIA","city":"BOGOTA","regional":"CENTRO","lat":4.594396,"lon":-74.137676,"route":"CEL-BOG-02","zone":"CEL-BOG-02-D07","zn":7,"ord":1,"nz":2,"mprev":null,"dprev":null,"near":"Portal Byte Dg 46","nearMin":1.9,"meta":5,"metaIr":4,"metaOct":3,"resOct":2,"alert":null,"note":null,"outlier":false},{"id":327043,"site":5084,"name":"Redmobile Tecnology Cra 87","addr":"CL 44 sur #68a-35 Venecia (Alkosto)","sector":"VENECIA (ALKOSTO)","city":"BOGOTA","regional":"CENTRO","lat":4.596196,"lon":-74.1398,"route":"CEL-BOG-02","zone":"CEL-BOG-02-D07","zn":7,"ord":2,"nz":2,"mprev":5.3,"dprev":399.0,"near":"Vaentec Venecia","nearMin":5.3,"meta":10,"metaIr":8,"metaOct":6,"resOct":2,"alert":null,"note":null,"outlier":false},{"id":327036,"site":2493,"name":"Clinica Celular Y Accesorios","addr":"CL 16 sur no 22-47 local 103             BR Restrepo","sector":"RESTREPO","city":"BOGOTA","regional":"CENTRO","lat":4.587436,"lon":-74.101366,"route":"CEL-BOG-02","zone":"CEL-BOG-02-D08","zn":8,"ord":1,"nz":2,"mprev":null,"dprev":null,"near":"Techmovil Store Restrepo","nearMin":4.7,"meta":8,"metaIr":4,"metaOct":3,"resOct":5,"alert":null,"note":null,"outlier":false},{"id":327037,"site":4214,"name":"Techmovil Store Restrepo","addr":"CL 17 SUR #17-44 Restrepo","sector":"RESTREPO","city":"BOGOTA","regional":"CENTRO","lat":4.58528,"lon":-74.100342,"route":"CEL-BOG-02","zone":"CEL-BOG-02-D08","zn":8,"ord":2,"nz":2,"mprev":4.7,"dprev":354.0,"near":"Clinica Celular Y Accesorios","nearMin":4.7,"meta":5,"metaIr":0,"metaOct":0,"resOct":0,"alert":null,"note":null,"outlier":false},{"id":327069,"site":3792,"name":"Connecting People Store Principal","addr":"KR 33 48 153 LC 112 CC PUNTO 33","sector":"CABECERA","city":"BUCARAMANGA","regional":"SANTANDER","lat":7.115247,"lon":-73.110649,"route":"CEL-BUC-01","zone":"CEL-BUC-01-D01","zn":1,"ord":1,"nz":3,"mprev":null,"dprev":null,"near":"Moviles Garcia Cabecera","nearMin":1.2,"meta":22,"metaIr":21,"metaOct":17,"resOct":8,"alert":null,"note":null,"outlier":false},{"id":327079,"site":1753,"name":"Moviles Garcia Cabecera","addr":"CL 49 # 34 - 17 LOCAL 101 Cabecera","sector":"CABECERA","city":"BUCARAMANGA","regional":"SANTANDER","lat":7.115366,"lon":-73.110017,"route":"CEL-BUC-01","zone":"CEL-BUC-01-D01","zn":1,"ord":2,"nz":3,"mprev":1.2,"dprev":86.0,"near":"Credistore S.a.s","nearMin":1.1,"meta":10,"metaIr":6,"metaOct":4,"resOct":6,"alert":null,"note":null,"outlier":false},{"id":327074,"site":252,"name":"Credistore S.a.s","addr":"KR 35A # 48 - 148 LC 35 Cabecera","sector":"CABECERA","city":"BUCARAMANGA","regional":"SANTANDER","lat":7.115488,"lon":-73.109269,"route":"CEL-BUC-01","zone":"CEL-BUC-01-D01","zn":1,"ord":3,"nz":3,"mprev":1.1,"dprev":84.0,"near":"Moviles Garcia Cabecera","nearMin":1.1,"meta":54,"metaIr":52,"metaOct":43,"resOct":37,"alert":null,"note":null,"outlier":false},{"id":327073,"site":4017,"name":"Credistore 3","addr":"KR 30 # 35-16 local 104 Mejoras públicas","sector":"MEJORAS PUBLICAS","city":"BUCARAMANGA","regional":"SANTANDER","lat":7.123345,"lon":-73.114303,"route":"CEL-BUC-01","zone":"CEL-BUC-01-D02","zn":2,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Digitaltech Bga","nearMin":13.1,"meta":10,"metaIr":4,"metaOct":3,"resOct":2,"alert":null,"note":null,"outlier":false},{"id":327067,"site":1669,"name":"Chacam Tecno Super Bucaramanga","addr":"CL 18 21-72 BARRIO SAN FRANCISCO","sector":"SAN FRANCISCO","city":"BUCARAMANGA","regional":"SANTANDER","lat":7.130424,"lon":-73.124148,"route":"CEL-BUC-01","zone":"CEL-BUC-01-D03","zn":3,"ord":1,"nz":2,"mprev":null,"dprev":null,"near":"Credistore 2","nearMin":2.4,"meta":5,"metaIr":0,"metaOct":0,"resOct":1,"alert":null,"note":null,"outlier":false},{"id":327070,"site":1372,"name":"Credistore 2","addr":"KR 23 #18-37 San Francisco","sector":"SAN FRANCISCO","city":"BUCARAMANGA","regional":"SANTANDER","lat":7.130245,"lon":-73.123042,"route":"CEL-BUC-01","zone":"CEL-BUC-01-D03","zn":3,"ord":2,"nz":2,"mprev":2.4,"dprev":178.0,"near":"Chacam Tecno Super Bucaramanga","nearMin":2.4,"meta":10,"metaIr":6,"metaOct":4,"resOct":5,"alert":null,"note":null,"outlier":false},{"id":327075,"site":1779,"name":"Digitaltech Bga","addr":"CL 34 # 22 - 44 LOCAL 4 CONJUNTO PICASSO CUBISMO","sector":"MEJORAS PUBLICAS","city":"BUCARAMANGA","regional":"SANTANDER","lat":7.121519,"lon":-73.120796,"route":"CEL-BUC-01","zone":"CEL-BUC-01-D04","zn":4,"ord":1,"nz":3,"mprev":null,"dprev":null,"near":"Chacam Bucaramanga Movil","nearMin":6.7,"meta":5,"metaIr":1,"metaOct":1,"resOct":2,"alert":null,"note":null,"outlier":false},{"id":327066,"site":1914,"name":"Chacam Bucaramanga Movil","addr":"KR 18 #33-55 centro","sector":"BUCARAMANGA CENTRO","city":"BUCARAMANGA","regional":"SANTANDER","lat":7.120766,"lon":-73.124626,"route":"CEL-BUC-01","zone":"CEL-BUC-01-D04","zn":4,"ord":2,"nz":3,"mprev":6.7,"dprev":493.0,"near":"Tecnosuper Centenario","nearMin":0.7,"meta":5,"metaIr":1,"metaOct":0,"resOct":0,"alert":null,"note":null,"outlier":false},{"id":327082,"site":164,"name":"Tecnosuper Centenario","addr":"CL 33 # 18-06 centro","sector":"BUCARAMANGA CENTRO","city":"BUCARAMANGA","regional":"SANTANDER","lat":7.121111,"lon":-73.124782,"route":"CEL-BUC-01","zone":"CEL-BUC-01-D04","zn":4,"ord":3,"nz":3,"mprev":0.7,"dprev":54.0,"near":"Chacam Bucaramanga Movil","nearMin":0.7,"meta":15,"metaIr":14,"metaOct":9,"resOct":9,"alert":null,"note":null,"outlier":false},{"id":327065,"site":1121,"name":"Tecnosuper Bucaramanga 35","addr":"CL 35 #18-05 Centro","sector":"BUCARAMANGA CENTRO","city":"BUCARAMANGA","regional":"SANTANDER","lat":7.119564,"lon":-73.124204,"route":"CEL-BUC-01","zone":"CEL-BUC-01-D05","zn":5,"ord":1,"nz":3,"mprev":null,"dprev":null,"near":"Chacam Bucaramanga Movil","nearMin":1.9,"meta":15,"metaIr":8,"metaOct":6,"resOct":9,"alert":null,"note":null,"outlier":false},{"id":327068,"site":4412,"name":"Chacam Tecnosuper Principal","addr":"KR 17 N 36-12 Centro","sector":"BUCARAMANGA CENTRO","city":"BUCARAMANGA","regional":"SANTANDER","lat":7.118224,"lon":-73.124946,"route":"CEL-BUC-01","zone":"CEL-BUC-01-D05","zn":5,"ord":2,"nz":3,"mprev":3.0,"dprev":222.0,"near":"Golden Tecnologia - Innva Moviles","nearMin":1.5,"meta":60,"metaIr":60,"metaOct":50,"resOct":20,"alert":null,"note":null,"outlier":false},{"id":327078,"site":2894,"name":"Golden Tecnologia - Innva Moviles","addr":"CL 37 #16-85 Centro","sector":"BUCARAMANGA CENTRO","city":"BUCARAMANGA","regional":"SANTANDER","lat":7.117726,"lon":-73.124644,"route":"CEL-BUC-01","zone":"CEL-BUC-01-D05","zn":5,"ord":3,"nz":3,"mprev":1.5,"dprev":109.0,"near":"Chacam Tecnosuper Principal","nearMin":1.5,"meta":15,"metaIr":15,"metaOct":12,"resOct":2,"alert":null,"note":null,"outlier":false},{"id":327076,"site":3334,"name":"Felest Principal","addr":"Comercial ACROPOLIS LOCAL 202A","sector":"ACROPOLIS","city":"BUCARAMANGA","regional":"SANTANDER","lat":7.104365,"lon":-73.122121,"route":"CEL-BUC-01","zone":"CEL-BUC-01-D06","zn":6,"ord":1,"nz":2,"mprev":null,"dprev":null,"near":"Felest Sucursal","nearMin":0.0,"meta":14,"metaIr":12,"metaOct":9,"resOct":4,"alert":null,"note":"Mismo CC (Acrópolis) que Felest Sucursal","outlier":false},{"id":327077,"site":2682,"name":"Felest Sucursal","addr":"Comercial ACROPOLIS LOCAL 243A","sector":"ACROPOLIS","city":"BUCARAMANGA","regional":"SANTANDER","lat":7.104365,"lon":-73.122121,"route":"CEL-BUC-01","zone":"CEL-BUC-01-D06","zn":6,"ord":2,"nz":2,"mprev":0.0,"dprev":0.0,"near":"Felest Principal","nearMin":0.0,"meta":5,"metaIr":3,"metaOct":2,"resOct":0,"alert":null,"note":"Mismo CC (Acrópolis) que Felest Principal","outlier":false},{"id":327080,"site":2615,"name":"Pinilla Celulares Principal","addr":"CL 9 # 6-81 BR Centro","sector":"FLORIDABLANCA","city":"BUCARAMANGA","regional":"SANTANDER","lat":6.986153,"lon":-73.050629,"route":"CEL-BUC-01","zone":"CEL-BUC-01-D07","zn":7,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Felest Principal","nearMin":265.7,"meta":10,"metaIr":10,"metaOct":7,"resOct":5,"alert":{"level":"alta","short":"Validar georreferencia","text":"VALIDAR GEO: DayByDay lo ubica en el centro de Piedecuesta (17 km); la base de metas dice Floridablanca. Si está junto a Surti Celu Pao (Cl 9 con Kr 6) irían el mismo día."},"note":null,"outlier":true},{"id":327081,"site":3852,"name":"Surti Celu Pao Sucursal","addr":"KR 6 n 9 - 35 barrio villas","sector":"FLORIDABLANCA","city":"BUCARAMANGA","regional":"SANTANDER","lat":6.552197,"lon":-73.127757,"route":"CEL-BUC-01","zone":"CEL-BUC-01-D08","zn":8,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Pinilla Celulares Principal","nearMin":849.3,"meta":10,"metaIr":3,"metaOct":2,"resOct":7,"alert":{"level":"alta","short":"Georreferencia a corregir","text":"GEO A CORREGIR: DayByDay lo ubica en San Gil (63 km de Bucaramanga); la base de metas dice barrio Floridablanca. Con radio de 300 m no podrá hacer ingreso."},"note":null,"outlier":true},{"id":327025,"site":3917,"name":"Chacam Barrancabermeja Cpc","addr":"KR 8 # 50-20 FASE 1 LOCAL 111","sector":"BARRANCABERMEJA","city":"BARRANCABERMEJA","regional":"SANTANDER","lat":7.060797,"lon":-73.868564,"route":"CEL-BCB-01","zone":"CEL-BCB-01-D01","zn":1,"ord":1,"nz":2,"mprev":null,"dprev":null,"near":"Power Phone Jk Principal","nearMin":0.0,"meta":40,"metaIr":38,"metaOct":30,"resOct":14,"alert":null,"note":"Mismo punto que Power Phone JK (mismo CC)","outlier":false},{"id":327028,"site":3790,"name":"Power Phone Jk Principal","addr":"KR 8 50-20 FASE1 PISO2 MODULO3","sector":"BARRANCABERMEJA","city":"BARRANCABERMEJA","regional":"SANTANDER","lat":7.060797,"lon":-73.868564,"route":"CEL-BCB-01","zone":"CEL-BCB-01-D01","zn":1,"ord":2,"nz":2,"mprev":0.0,"dprev":0.0,"near":"Chacam Barrancabermeja Cpc","nearMin":0.0,"meta":20,"metaIr":18,"metaOct":14,"resOct":2,"alert":null,"note":"Mismo punto que Chacam Barrancabermeja CPC","outlier":false},{"id":327024,"site":1533,"name":"360 Digital 3D","addr":"KR  8 No 6 19 centro comercial súper estrellas local 16","sector":"BARRANCABERMEJA","city":"BARRANCABERMEJA","regional":"SANTANDER","lat":7.060527,"lon":-73.869424,"route":"CEL-BCB-01","zone":"CEL-BCB-01-D02","zn":2,"ord":1,"nz":3,"mprev":null,"dprev":null,"near":"Johnpana Tienda Principal","nearMin":0.2,"meta":20,"metaIr":18,"metaOct":14,"resOct":19,"alert":null,"note":null,"outlier":false},{"id":327027,"site":4813,"name":"Johnpana Tienda Principal","addr":"CL 49 #6B 115 Ed Cardona local 101","sector":"BARRANCABERMEJA","city":"BARRANCABERMEJA","regional":"SANTANDER","lat":7.060483,"lon":-73.869588,"route":"CEL-BCB-01","zone":"CEL-BCB-01-D02","zn":2,"ord":2,"nz":3,"mprev":0.2,"dprev":13.0,"near":"360 Digital 3D","nearMin":0.2,"meta":15,"metaIr":13,"metaOct":10,"resOct":6,"alert":null,"note":null,"outlier":false},{"id":327026,"site":4661,"name":"Chacam Barrancabermeja Principal","addr":"CL 49 # 8-07 LOCAL 118","sector":"BARRANCABERMEJA","city":"BARRANCABERMEJA","regional":"SANTANDER","lat":7.060108,"lon":-73.869091,"route":"CEL-BCB-01","zone":"CEL-BCB-01-D02","zn":2,"ord":3,"nz":3,"mprev":1.0,"dprev":73.0,"near":"Johnpana Tienda Principal","nearMin":1.0,"meta":5,"metaIr":4,"metaOct":2,"resOct":3,"alert":null,"note":null,"outlier":false},{"id":327089,"site":4853,"name":"Tech Scent","addr":"CL 73 # 3 AN - 86","sector":"CALI","city":"CALI","regional":"VALLE DEL CAUCA","lat":3.495084,"lon":-76.492647,"route":"CEL-CAL-01","zone":"CEL-CAL-01-D01","zn":1,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Imovil Accesorios","nearMin":55.2,"meta":20,"metaIr":15,"metaOct":12,"resOct":2,"alert":null,"note":null,"outlier":false},{"id":327086,"site":3481,"name":"Imovil Accesorios","addr":"CL 1 # 47 - 67 local 49","sector":"CALI","city":"CALI","regional":"VALLE DEL CAUCA","lat":3.468637,"lon":-76.503614,"route":"CEL-CAL-01","zone":"CEL-CAL-01-D02","zn":2,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Grupo Indominus B&S S.a.s.","nearMin":40.9,"meta":5,"metaIr":2,"metaOct":1,"resOct":1,"alert":null,"note":null,"outlier":false},{"id":327083,"site":3926,"name":"Celu Tronik","addr":"CL 14 # 5 - 18 LOCAL X2 - 1","sector":"CALI","city":"CALI","regional":"VALLE DEL CAUCA","lat":3.452335,"lon":-76.530304,"route":"CEL-CAL-01","zone":"CEL-CAL-01-D03","zn":3,"ord":1,"nz":2,"mprev":null,"dprev":null,"near":"Erika Cell S.a.s","nearMin":0.5,"meta":15,"metaIr":14,"metaOct":11,"resOct":7,"alert":null,"note":null,"outlier":false},{"id":327084,"site":4648,"name":"Erika Cell S.a.s","addr":"CL 14 #5-20 CENTRO COMERCIAL LA FORTUNA LOCAL N 04A","sector":"CALI","city":"CALI","regional":"VALLE DEL CAUCA","lat":3.452154,"lon":-76.530345,"route":"CEL-CAL-01","zone":"CEL-CAL-01-D03","zn":3,"ord":2,"nz":2,"mprev":0.5,"dprev":41.0,"near":"Celu Tronik","nearMin":0.5,"meta":10,"metaIr":7,"metaOct":5,"resOct":2,"alert":null,"note":null,"outlier":false},{"id":327085,"site":4716,"name":"Grupo Indominus B&S S.a.s.","addr":"KR 12 #54-19","sector":"CALI","city":"CALI","regional":"VALLE DEL CAUCA","lat":3.448381,"lon":-76.497286,"route":"CEL-CAL-01","zone":"CEL-CAL-01-D04","zn":4,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Imovil Accesorios","nearMin":40.9,"meta":5,"metaIr":3,"metaOct":2,"resOct":4,"alert":null,"note":null,"outlier":false},{"id":327087,"site":3569,"name":"Nissitechne","addr":"KR 29 # 72T 16","sector":"CALI","city":"CALI","regional":"VALLE DEL CAUCA","lat":3.417998,"lon":-76.496495,"route":"CEL-CAL-01","zone":"CEL-CAL-01-D05","zn":5,"ord":1,"nz":2,"mprev":null,"dprev":null,"near":"Surticcesorios Fc","nearMin":1.1,"meta":5,"metaIr":2,"metaOct":1,"resOct":0,"alert":{"level":"media","short":"Validar ubicación","text":"VALIDAR GEO: dirección Kr 29 #72T-16 pero quedó a 80 m de Surticcesorios FC (Kr 29 #45-54); mismo teléfono en la base de metas."},"note":null,"outlier":false},{"id":327088,"site":3568,"name":"Surticcesorios Fc","addr":"KR 29 # 45 - 54","sector":"CALI","city":"CALI","regional":"VALLE DEL CAUCA","lat":3.418375,"lon":-76.497033,"route":"CEL-CAL-01","zone":"CEL-CAL-01-D05","zn":5,"ord":2,"nz":2,"mprev":1.1,"dprev":82.0,"near":"Nissitechne","nearMin":1.1,"meta":25,"metaIr":23,"metaOct":18,"resOct":10,"alert":{"level":"media","short":"Validar ubicación","text":"VALIDAR GEO: ver Nissitechne (direcciones distintas, coordenadas casi iguales)."},"note":null,"outlier":false},{"id":327091,"site":1760,"name":"Comunicaciones M&P _ Facatativa  Fetec","addr":"CL 7 # 4-73 local 2","sector":"FACATATIVA","city":"FACATATIVA","regional":"CUNDINAMARCA","lat":4.812266,"lon":-74.353957,"route":"CEL-FAC-01","zone":"CEL-FAC-01-D01","zn":1,"ord":1,"nz":3,"mprev":null,"dprev":null,"near":"Comunicaciones M&P_8 Facatativa - S&S Baruch","nearMin":1.3,"meta":5,"metaIr":2,"metaOct":1,"resOct":1,"alert":null,"note":null,"outlier":false},{"id":327092,"site":1996,"name":"Comunicaciones M&P_8 Facatativa - S&S Baruch","addr":"KR 5 # 6-59 local 2 centro Facatativa","sector":"FACATATIVA","city":"FACATATIVA","regional":"CUNDINAMARCA","lat":4.812183,"lon":-74.353426,"route":"CEL-FAC-01","zone":"CEL-FAC-01-D01","zn":1,"ord":2,"nz":3,"mprev":1.3,"dprev":95.0,"near":"Comunicaciones M&P _ Facatativa  Fetec","nearMin":1.3,"meta":5,"metaIr":4,"metaOct":2,"resOct":0,"alert":null,"note":null,"outlier":false},{"id":327093,"site":4004,"name":"G.r. Comunicaciones 1","addr":"KR 5 # 7-175","sector":"FACATATIVA","city":"FACATATIVA","regional":"CUNDINAMARCA","lat":4.813441,"lon":-74.354622,"route":"CEL-FAC-01","zone":"CEL-FAC-01-D01","zn":1,"ord":3,"nz":3,"mprev":2.5,"dprev":191.0,"near":"Comunicaciones M&P_8 Facatativa - S&S Baruch","nearMin":2.5,"meta":15,"metaIr":12,"metaOct":8,"resOct":6,"alert":null,"note":null,"outlier":false},{"id":327090,"site":67,"name":"Comunicaciones M & P Sas_1_Faca","addr":"KR  2 #5-23","sector":"FACATATIVA","city":"FACATATIVA","regional":"CUNDINAMARCA","lat":4.809308,"lon":-74.354313,"route":"CEL-FAC-01","zone":"CEL-FAC-01-D02","zn":2,"ord":1,"nz":2,"mprev":null,"dprev":null,"near":"Gl Global Technology 1","nearMin":0.8,"meta":10,"metaIr":6,"metaOct":3,"resOct":1,"alert":null,"note":null,"outlier":false},{"id":327094,"site":4262,"name":"Gl Global Technology 1","addr":"KR 2  # 4 - 89","sector":"FACATATIVA","city":"FACATATIVA","regional":"CUNDINAMARCA","lat":4.808802,"lon":-74.354007,"route":"CEL-FAC-01","zone":"CEL-FAC-01-D02","zn":2,"ord":2,"nz":2,"mprev":0.8,"dprev":63.0,"near":"Comunicaciones M & P Sas_1_Faca","nearMin":0.8,"meta":10,"metaIr":5,"metaOct":4,"resOct":3,"alert":null,"note":null,"outlier":false},{"id":327021,"site":2409,"name":"Inversiones Me Arauca","addr":"CL 23 #20-50 Centro","sector":"ARAUCA","city":"ARAUCA","regional":"ARAUCA","lat":7.087083,"lon":-70.758091,"route":"CEL-ARA-01","zone":"CEL-ARA-01-D01","zn":1,"ord":1,"nz":2,"mprev":null,"dprev":null,"near":"Tecnoescam - Arauca","nearMin":1.3,"meta":10,"metaIr":9,"metaOct":6,"resOct":1,"alert":null,"note":null,"outlier":false},{"id":327023,"site":700,"name":"Tecnoescam - Arauca","addr":"KR 20 # 23 28","sector":"ARAUCA","city":"ARAUCA","regional":"ARAUCA","lat":7.087319,"lon":-70.757495,"route":"CEL-ARA-01","zone":"CEL-ARA-01-D01","zn":1,"ord":2,"nz":2,"mprev":1.3,"dprev":96.0,"near":"Inversiones Me Arauca","nearMin":1.3,"meta":15,"metaIr":11,"metaOct":7,"resOct":0,"alert":null,"note":null,"outlier":false},{"id":327020,"site":2232,"name":"Comfacel Multiservicios","addr":"KR 14 #24-19","sector":"ARAUCA","city":"ARAUCA","regional":"ARAUCA","lat":7.088679,"lon":-70.752453,"route":"CEL-ARA-01","zone":"CEL-ARA-01-D02","zn":2,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Tecnoescam - Arauca","nearMin":10.0,"meta":15,"metaIr":11,"metaOct":7,"resOct":0,"alert":null,"note":null,"outlier":false},{"id":327022,"site":4855,"name":"Kary Comunicaciones Alo 2","addr":"CL 14 # 10-34","sector":"ARAUCA","city":"ARAUCA","regional":"ARAUCA","lat":7.080756,"lon":-70.74927,"route":"CEL-ARA-01","zone":"CEL-ARA-01-D03","zn":3,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Comfacel Multiservicios","nearMin":16.4,"meta":10,"metaIr":10,"metaOct":7,"resOct":1,"alert":null,"note":null,"outlier":false},{"id":327096,"site":5053,"name":"Celu Accesorios Fts","addr":"Comercial LOS COMUNEROS PISO 2 LOCAL 2147","sector":"NEIVA","city":"NEIVA","regional":"HUILA","lat":2.926958,"lon":-75.292076,"route":"CEL-NEI-01","zone":"CEL-NEI-01-D01","zn":1,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Buda Phone 11","nearMin":663.4,"meta":25,"metaIr":21,"metaOct":10,"resOct":3,"alert":null,"note":null,"outlier":false},{"id":327097,"site":2695,"name":"Buda Phone 11","addr":"CL 3 #6-46 YAGUARA","sector":"NEIVA","city":"NEIVA","regional":"HUILA","lat":2.667511,"lon":-75.518568,"route":"CEL-NEI-01","zone":"CEL-NEI-01-D02","zn":2,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"Celu Accesorios Fts","nearMin":663.4,"meta":15,"metaIr":13,"metaOct":16,"resOct":4,"alert":{"level":"alta","short":"PDV foráneo (Yaguará)","text":"FORÁNEO: la dirección es en Yaguará (Huila), a ~40 km de Neiva. Requiere transporte; no es caminable."},"note":null,"outlier":true},{"id":327095,"site":1355,"name":"Crediphonestore S.a.s","addr":"CL 20 # 11SUR - 47 LC 3 MERCACENTRO","sector":"IBAGUE","city":"IBAGUE","regional":"TOLIMA","lat":4.432343,"lon":-75.243768,"route":"CEL-IBA-01","zone":"CEL-IBA-01-D01","zn":1,"ord":1,"nz":1,"mprev":null,"dprev":null,"near":"(único PDV del promotor)","nearMin":null,"meta":25,"metaIr":24,"metaOct":19,"resOct":13,"alert":null,"note":null,"outlier":false}],"zones":[{"code":"CEL-BOG-01-D01","route":"CEL-BOG-01","zn":1,"short":"D01","sector":"SAN CRISTOBAL NORTE","pdvs":[327062,327059,327064],"walk":5.6,"meta":32,"dates":[0,11,22,33,44]},{"code":"CEL-BOG-01-D02","route":"CEL-BOG-01","zn":2,"short":"D02","sector":"SAN CRISTOBAL NORTE","pdvs":[327058,327061],"walk":0.0,"meta":15,"dates":[1,12,23,34]},{"code":"CEL-BOG-01-D03","route":"CEL-BOG-01","zn":3,"short":"D03","sector":"SAN CRISTOBAL NORTE","pdvs":[327060,327063],"walk":2.6,"meta":20,"dates":[2,13,24,35]},{"code":"CEL-BOG-01-D04","route":"CEL-BOG-01","zn":4,"short":"D04","sector":"LAS FERIAS","pdvs":[327057],"walk":0.0,"meta":13,"dates":[3,14,25,36]},{"code":"CEL-BOG-01-D05","route":"CEL-BOG-01","zn":5,"short":"D05","sector":"FONTIBON CENTRO","pdvs":[327055],"walk":0.0,"meta":10,"dates":[4,15,26,37]},{"code":"CEL-BOG-01-D06","route":"CEL-BOG-01","zn":6,"short":"D06","sector":"FONTIBON PUENTE GRANDE","pdvs":[327056],"walk":0.0,"meta":5,"dates":[5,16,27,38]},{"code":"CEL-BOG-01-D07","route":"CEL-BOG-01","zn":7,"short":"D07","sector":"PATIO BONITO","pdvs":[327044,327049,327045],"walk":5.1,"meta":128,"dates":[6,17,28,39]},{"code":"CEL-BOG-01-D08","route":"CEL-BOG-01","zn":8,"short":"D08","sector":"PATIO BONITO","pdvs":[327046,327048],"walk":6.4,"meta":20,"dates":[7,18,29,40]},{"code":"CEL-BOG-01-D09","route":"CEL-BOG-01","zn":9,"short":"D09","sector":"PATIO BONITO","pdvs":[327050],"walk":0.0,"meta":10,"dates":[8,19,30,41]},{"code":"CEL-BOG-01-D10","route":"CEL-BOG-01","zn":10,"short":"D10","sector":"RESTREPO","pdvs":[327051],"walk":0.0,"meta":10,"dates":[9,20,31,42]},{"code":"CEL-BOG-01-D11","route":"CEL-BOG-01","zn":11,"short":"D11","sector":"CENTRO CALLE 13","pdvs":[327053,327052,327054],"walk":1.2,"meta":73,"dates":[10,21,32,43]},{"code":"CEL-BOG-02-D01","route":"CEL-BOG-02","zn":1,"short":"D01","sector":"BOSA SAN BERNARDINO","pdvs":[327035],"walk":0.0,"meta":50,"dates":[0,8,16,24,32,40]},{"code":"CEL-BOG-02-D02","route":"CEL-BOG-02","zn":2,"short":"D02","sector":"BOSA PORVENIR","pdvs":[327034],"walk":0.0,"meta":10,"dates":[1,9,17,25,33,41]},{"code":"CEL-BOG-02-D03","route":"CEL-BOG-02","zn":3,"short":"D03","sector":"BOSA LA LIBERTAD","pdvs":[327033],"walk":0.0,"meta":5,"dates":[2,10,18,26,34,42]},{"code":"CEL-BOG-02-D04","route":"CEL-BOG-02","zn":4,"short":"D04","sector":"BOSA CENTRO","pdvs":[327031],"walk":0.0,"meta":5,"dates":[3,11,19,27,35,43]},{"code":"CEL-BOG-02-D05","route":"CEL-BOG-02","zn":5,"short":"D05","sector":"BOSA ATALAYAS","pdvs":[327029],"walk":0.0,"meta":25,"dates":[4,12,20,28,36,44]},{"code":"CEL-BOG-02-D06","route":"CEL-BOG-02","zn":6,"short":"D06","sector":"VENECIA","pdvs":[327038,327039,327042],"walk":0.7,"meta":20,"dates":[5,13,21,29,37]},{"code":"CEL-BOG-02-D07","route":"CEL-BOG-02","zn":7,"short":"D07","sector":"VENECIA / VENECIA (ALKOSTO)","pdvs":[327041,327043],"walk":5.3,"meta":15,"dates":[6,14,22,30,38]},{"code":"CEL-BOG-02-D08","route":"CEL-BOG-02","zn":8,"short":"D08","sector":"RESTREPO","pdvs":[327036,327037],"walk":4.7,"meta":13,"dates":[7,15,23,31,39]},{"code":"CEL-BUC-01-D01","route":"CEL-BUC-01","zn":1,"short":"D01","sector":"CABECERA","pdvs":[327069,327079,327074],"walk":2.3,"meta":86,"dates":[0,8,16,24,32,40]},{"code":"CEL-BUC-01-D02","route":"CEL-BUC-01","zn":2,"short":"D02","sector":"MEJORAS PUBLICAS","pdvs":[327073],"walk":0.0,"meta":10,"dates":[1,9,17,25,33,41]},{"code":"CEL-BUC-01-D03","route":"CEL-BUC-01","zn":3,"short":"D03","sector":"SAN FRANCISCO","pdvs":[327067,327070],"walk":2.4,"meta":15,"dates":[2,10,18,26,34,42]},{"code":"CEL-BUC-01-D04","route":"CEL-BUC-01","zn":4,"short":"D04","sector":"MEJORAS PUBLICAS / BUCARAMANGA CENTRO","pdvs":[327075,327066,327082],"walk":7.4,"meta":25,"dates":[3,11,19,27,35,43]},{"code":"CEL-BUC-01-D05","route":"CEL-BUC-01","zn":5,"short":"D05","sector":"BUCARAMANGA CENTRO","pdvs":[327065,327068,327078],"walk":4.5,"meta":90,"dates":[4,12,20,28,36,44]},{"code":"CEL-BUC-01-D06","route":"CEL-BUC-01","zn":6,"short":"D06","sector":"ACROPOLIS","pdvs":[327076,327077],"walk":0.0,"meta":19,"dates":[5,13,21,29,37]},{"code":"CEL-BUC-01-D07","route":"CEL-BUC-01","zn":7,"short":"D07","sector":"FLORIDABLANCA","pdvs":[327080],"walk":0.0,"meta":10,"dates":[6,14,22,30,38]},{"code":"CEL-BUC-01-D08","route":"CEL-BUC-01","zn":8,"short":"D08","sector":"FLORIDABLANCA","pdvs":[327081],"walk":0.0,"meta":10,"dates":[7,15,23,31,39]},{"code":"CEL-BCB-01-D01","route":"CEL-BCB-01","zn":1,"short":"D01","sector":"BARRANCABERMEJA","pdvs":[327025,327028],"walk":0.0,"meta":60,"dates":[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44]},{"code":"CEL-BCB-01-D02","route":"CEL-BCB-01","zn":2,"short":"D02","sector":"BARRANCABERMEJA","pdvs":[327024,327027,327026],"walk":1.2,"meta":40,"dates":[1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43]},{"code":"CEL-CAL-01-D01","route":"CEL-CAL-01","zn":1,"short":"D01","sector":"CALI","pdvs":[327089],"walk":0.0,"meta":20,"dates":[0,5,10,15,20,25,30,35,40]},{"code":"CEL-CAL-01-D02","route":"CEL-CAL-01","zn":2,"short":"D02","sector":"CALI","pdvs":[327086],"walk":0.0,"meta":5,"dates":[1,6,11,16,21,26,31,36,41]},{"code":"CEL-CAL-01-D03","route":"CEL-CAL-01","zn":3,"short":"D03","sector":"CALI","pdvs":[327083,327084],"walk":0.5,"meta":25,"dates":[2,7,12,17,22,27,32,37,42]},{"code":"CEL-CAL-01-D04","route":"CEL-CAL-01","zn":4,"short":"D04","sector":"CALI","pdvs":[327085],"walk":0.0,"meta":5,"dates":[3,8,13,18,23,28,33,38,43]},{"code":"CEL-CAL-01-D05","route":"CEL-CAL-01","zn":5,"short":"D05","sector":"CALI","pdvs":[327087,327088],"walk":1.1,"meta":30,"dates":[4,9,14,19,24,29,34,39,44]},{"code":"CEL-FAC-01-D01","route":"CEL-FAC-01","zn":1,"short":"D01","sector":"FACATATIVA","pdvs":[327091,327092,327093],"walk":3.8,"meta":25,"dates":[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44]},{"code":"CEL-FAC-01-D02","route":"CEL-FAC-01","zn":2,"short":"D02","sector":"FACATATIVA","pdvs":[327090,327094],"walk":0.8,"meta":20,"dates":[1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43]},{"code":"CEL-ARA-01-D01","route":"CEL-ARA-01","zn":1,"short":"D01","sector":"ARAUCA","pdvs":[327021,327023],"walk":1.3,"meta":25,"dates":[0,3,6,9,12,15,18,21,24,27,30,33,36,39,42]},{"code":"CEL-ARA-01-D02","route":"CEL-ARA-01","zn":2,"short":"D02","sector":"ARAUCA","pdvs":[327020],"walk":0.0,"meta":15,"dates":[1,4,7,10,13,16,19,22,25,28,31,34,37,40,43]},{"code":"CEL-ARA-01-D03","route":"CEL-ARA-01","zn":3,"short":"D03","sector":"ARAUCA","pdvs":[327022],"walk":0.0,"meta":10,"dates":[2,5,8,11,14,17,20,23,26,29,32,35,38,41,44]},{"code":"CEL-NEI-01-D01","route":"CEL-NEI-01","zn":1,"short":"D01","sector":"NEIVA","pdvs":[327096],"walk":0.0,"meta":25,"dates":[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44]},{"code":"CEL-NEI-01-D02","route":"CEL-NEI-01","zn":2,"short":"D02","sector":"NEIVA","pdvs":[327097],"walk":0.0,"meta":15,"dates":[1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43]},{"code":"CEL-IBA-01-D01","route":"CEL-IBA-01","zn":1,"short":"D01","sector":"IBAGUE","pdvs":[327095],"walk":0.0,"meta":25,"dates":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44]}],"visits":[{"d":0,"r":"CEL-BOG-01","z":"CEL-BOG-01-D01","o":1,"p":327062,"i":480,"f":655,"v":1},{"d":0,"r":"CEL-BOG-01","z":"CEL-BOG-01-D01","o":2,"p":327059,"i":660,"f":835,"v":1},{"d":0,"r":"CEL-BOG-01","z":"CEL-BOG-01-D01","o":3,"p":327064,"i":840,"f":1020,"v":1},{"d":1,"r":"CEL-BOG-01","z":"CEL-BOG-01-D02","o":1,"p":327058,"i":480,"f":745,"v":1},{"d":1,"r":"CEL-BOG-01","z":"CEL-BOG-01-D02","o":2,"p":327061,"i":750,"f":1020,"v":1},{"d":2,"r":"CEL-BOG-01","z":"CEL-BOG-01-D03","o":1,"p":327060,"i":480,"f":745,"v":1},{"d":2,"r":"CEL-BOG-01","z":"CEL-BOG-01-D03","o":2,"p":327063,"i":750,"f":1020,"v":1},{"d":3,"r":"CEL-BOG-01","z":"CEL-BOG-01-D04","o":1,"p":327057,"i":480,"f":1020,"v":1},{"d":4,"r":"CEL-BOG-01","z":"CEL-BOG-01-D05","o":1,"p":327055,"i":480,"f":1020,"v":1},{"d":5,"r":"CEL-BOG-01","z":"CEL-BOG-01-D06","o":1,"p":327056,"i":480,"f":1020,"v":1},{"d":6,"r":"CEL-BOG-01","z":"CEL-BOG-01-D07","o":1,"p":327044,"i":480,"f":655,"v":1},{"d":6,"r":"CEL-BOG-01","z":"CEL-BOG-01-D07","o":2,"p":327049,"i":660,"f":835,"v":1},{"d":6,"r":"CEL-BOG-01","z":"CEL-BOG-01-D07","o":3,"p":327045,"i":840,"f":1020,"v":1},{"d":7,"r":"CEL-BOG-01","z":"CEL-BOG-01-D08","o":1,"p":327046,"i":480,"f":745,"v":1},{"d":7,"r":"CEL-BOG-01","z":"CEL-BOG-01-D08","o":2,"p":327048,"i":755,"f":1020,"v":1},{"d":8,"r":"CEL-BOG-01","z":"CEL-BOG-01-D09","o":1,"p":327050,"i":480,"f":1020,"v":1},{"d":9,"r":"CEL-BOG-01","z":"CEL-BOG-01-D10","o":1,"p":327051,"i":480,"f":1020,"v":1},{"d":10,"r":"CEL-BOG-01","z":"CEL-BOG-01-D11","o":1,"p":327053,"i":480,"f":655,"v":1},{"d":10,"r":"CEL-BOG-01","z":"CEL-BOG-01-D11","o":2,"p":327052,"i":660,"f":835,"v":1},{"d":10,"r":"CEL-BOG-01","z":"CEL-BOG-01-D11","o":3,"p":327054,"i":840,"f":1020,"v":1},{"d":11,"r":"CEL-BOG-01","z":"CEL-BOG-01-D01","o":1,"p":327062,"i":480,"f":655,"v":2},{"d":11,"r":"CEL-BOG-01","z":"CEL-BOG-01-D01","o":2,"p":327059,"i":660,"f":835,"v":2},{"d":11,"r":"CEL-BOG-01","z":"CEL-BOG-01-D01","o":3,"p":327064,"i":840,"f":1020,"v":2},{"d":12,"r":"CEL-BOG-01","z":"CEL-BOG-01-D02","o":1,"p":327058,"i":480,"f":745,"v":2},{"d":12,"r":"CEL-BOG-01","z":"CEL-BOG-01-D02","o":2,"p":327061,"i":750,"f":1020,"v":2},{"d":13,"r":"CEL-BOG-01","z":"CEL-BOG-01-D03","o":1,"p":327060,"i":480,"f":745,"v":2},{"d":13,"r":"CEL-BOG-01","z":"CEL-BOG-01-D03","o":2,"p":327063,"i":750,"f":1020,"v":2},{"d":14,"r":"CEL-BOG-01","z":"CEL-BOG-01-D04","o":1,"p":327057,"i":480,"f":1020,"v":2},{"d":15,"r":"CEL-BOG-01","z":"CEL-BOG-01-D05","o":1,"p":327055,"i":480,"f":1020,"v":2},{"d":16,"r":"CEL-BOG-01","z":"CEL-BOG-01-D06","o":1,"p":327056,"i":480,"f":1020,"v":2},{"d":17,"r":"CEL-BOG-01","z":"CEL-BOG-01-D07","o":1,"p":327044,"i":480,"f":655,"v":2},{"d":17,"r":"CEL-BOG-01","z":"CEL-BOG-01-D07","o":2,"p":327049,"i":660,"f":835,"v":2},{"d":17,"r":"CEL-BOG-01","z":"CEL-BOG-01-D07","o":3,"p":327045,"i":840,"f":1020,"v":2},{"d":18,"r":"CEL-BOG-01","z":"CEL-BOG-01-D08","o":1,"p":327046,"i":480,"f":745,"v":2},{"d":18,"r":"CEL-BOG-01","z":"CEL-BOG-01-D08","o":2,"p":327048,"i":755,"f":1020,"v":2},{"d":19,"r":"CEL-BOG-01","z":"CEL-BOG-01-D09","o":1,"p":327050,"i":480,"f":1020,"v":2},{"d":20,"r":"CEL-BOG-01","z":"CEL-BOG-01-D10","o":1,"p":327051,"i":480,"f":1020,"v":2},{"d":21,"r":"CEL-BOG-01","z":"CEL-BOG-01-D11","o":1,"p":327053,"i":480,"f":655,"v":2},{"d":21,"r":"CEL-BOG-01","z":"CEL-BOG-01-D11","o":2,"p":327052,"i":660,"f":835,"v":2},{"d":21,"r":"CEL-BOG-01","z":"CEL-BOG-01-D11","o":3,"p":327054,"i":840,"f":1020,"v":2},{"d":22,"r":"CEL-BOG-01","z":"CEL-BOG-01-D01","o":1,"p":327062,"i":480,"f":655,"v":3},{"d":22,"r":"CEL-BOG-01","z":"CEL-BOG-01-D01","o":2,"p":327059,"i":660,"f":835,"v":3},{"d":22,"r":"CEL-BOG-01","z":"CEL-BOG-01-D01","o":3,"p":327064,"i":840,"f":1020,"v":3},{"d":23,"r":"CEL-BOG-01","z":"CEL-BOG-01-D02","o":1,"p":327058,"i":480,"f":745,"v":3},{"d":23,"r":"CEL-BOG-01","z":"CEL-BOG-01-D02","o":2,"p":327061,"i":750,"f":1020,"v":3},{"d":24,"r":"CEL-BOG-01","z":"CEL-BOG-01-D03","o":1,"p":327060,"i":480,"f":745,"v":3},{"d":24,"r":"CEL-BOG-01","z":"CEL-BOG-01-D03","o":2,"p":327063,"i":750,"f":1020,"v":3},{"d":25,"r":"CEL-BOG-01","z":"CEL-BOG-01-D04","o":1,"p":327057,"i":480,"f":1020,"v":3},{"d":26,"r":"CEL-BOG-01","z":"CEL-BOG-01-D05","o":1,"p":327055,"i":480,"f":1020,"v":3},{"d":27,"r":"CEL-BOG-01","z":"CEL-BOG-01-D06","o":1,"p":327056,"i":480,"f":1020,"v":3},{"d":28,"r":"CEL-BOG-01","z":"CEL-BOG-01-D07","o":1,"p":327044,"i":480,"f":655,"v":3},{"d":28,"r":"CEL-BOG-01","z":"CEL-BOG-01-D07","o":2,"p":327049,"i":660,"f":835,"v":3},{"d":28,"r":"CEL-BOG-01","z":"CEL-BOG-01-D07","o":3,"p":327045,"i":840,"f":1020,"v":3},{"d":29,"r":"CEL-BOG-01","z":"CEL-BOG-01-D08","o":1,"p":327046,"i":480,"f":745,"v":3},{"d":29,"r":"CEL-BOG-01","z":"CEL-BOG-01-D08","o":2,"p":327048,"i":755,"f":1020,"v":3},{"d":30,"r":"CEL-BOG-01","z":"CEL-BOG-01-D09","o":1,"p":327050,"i":480,"f":1020,"v":3},{"d":31,"r":"CEL-BOG-01","z":"CEL-BOG-01-D10","o":1,"p":327051,"i":480,"f":1020,"v":3},{"d":32,"r":"CEL-BOG-01","z":"CEL-BOG-01-D11","o":1,"p":327053,"i":480,"f":655,"v":3},{"d":32,"r":"CEL-BOG-01","z":"CEL-BOG-01-D11","o":2,"p":327052,"i":660,"f":835,"v":3},{"d":32,"r":"CEL-BOG-01","z":"CEL-BOG-01-D11","o":3,"p":327054,"i":840,"f":1020,"v":3},{"d":33,"r":"CEL-BOG-01","z":"CEL-BOG-01-D01","o":1,"p":327062,"i":480,"f":655,"v":4},{"d":33,"r":"CEL-BOG-01","z":"CEL-BOG-01-D01","o":2,"p":327059,"i":660,"f":835,"v":4},{"d":33,"r":"CEL-BOG-01","z":"CEL-BOG-01-D01","o":3,"p":327064,"i":840,"f":1020,"v":4},{"d":34,"r":"CEL-BOG-01","z":"CEL-BOG-01-D02","o":1,"p":327058,"i":480,"f":745,"v":4},{"d":34,"r":"CEL-BOG-01","z":"CEL-BOG-01-D02","o":2,"p":327061,"i":750,"f":1020,"v":4},{"d":35,"r":"CEL-BOG-01","z":"CEL-BOG-01-D03","o":1,"p":327060,"i":480,"f":745,"v":4},{"d":35,"r":"CEL-BOG-01","z":"CEL-BOG-01-D03","o":2,"p":327063,"i":750,"f":1020,"v":4},{"d":36,"r":"CEL-BOG-01","z":"CEL-BOG-01-D04","o":1,"p":327057,"i":480,"f":1020,"v":4},{"d":37,"r":"CEL-BOG-01","z":"CEL-BOG-01-D05","o":1,"p":327055,"i":480,"f":1020,"v":4},{"d":38,"r":"CEL-BOG-01","z":"CEL-BOG-01-D06","o":1,"p":327056,"i":480,"f":1020,"v":4},{"d":39,"r":"CEL-BOG-01","z":"CEL-BOG-01-D07","o":1,"p":327044,"i":480,"f":655,"v":4},{"d":39,"r":"CEL-BOG-01","z":"CEL-BOG-01-D07","o":2,"p":327049,"i":660,"f":835,"v":4},{"d":39,"r":"CEL-BOG-01","z":"CEL-BOG-01-D07","o":3,"p":327045,"i":840,"f":1020,"v":4},{"d":40,"r":"CEL-BOG-01","z":"CEL-BOG-01-D08","o":1,"p":327046,"i":480,"f":745,"v":4},{"d":40,"r":"CEL-BOG-01","z":"CEL-BOG-01-D08","o":2,"p":327048,"i":755,"f":1020,"v":4},{"d":41,"r":"CEL-BOG-01","z":"CEL-BOG-01-D09","o":1,"p":327050,"i":480,"f":1020,"v":4},{"d":42,"r":"CEL-BOG-01","z":"CEL-BOG-01-D10","o":1,"p":327051,"i":480,"f":1020,"v":4},{"d":43,"r":"CEL-BOG-01","z":"CEL-BOG-01-D11","o":1,"p":327053,"i":480,"f":655,"v":4},{"d":43,"r":"CEL-BOG-01","z":"CEL-BOG-01-D11","o":2,"p":327052,"i":660,"f":835,"v":4},{"d":43,"r":"CEL-BOG-01","z":"CEL-BOG-01-D11","o":3,"p":327054,"i":840,"f":1020,"v":4},{"d":44,"r":"CEL-BOG-01","z":"CEL-BOG-01-D01","o":1,"p":327062,"i":480,"f":655,"v":5},{"d":44,"r":"CEL-BOG-01","z":"CEL-BOG-01-D01","o":2,"p":327059,"i":660,"f":835,"v":5},{"d":44,"r":"CEL-BOG-01","z":"CEL-BOG-01-D01","o":3,"p":327064,"i":840,"f":1020,"v":5},{"d":0,"r":"CEL-BOG-02","z":"CEL-BOG-02-D01","o":1,"p":327035,"i":480,"f":1020,"v":1},{"d":1,"r":"CEL-BOG-02","z":"CEL-BOG-02-D02","o":1,"p":327034,"i":480,"f":1020,"v":1},{"d":2,"r":"CEL-BOG-02","z":"CEL-BOG-02-D03","o":1,"p":327033,"i":480,"f":1020,"v":1},{"d":3,"r":"CEL-BOG-02","z":"CEL-BOG-02-D04","o":1,"p":327031,"i":480,"f":1020,"v":1},{"d":4,"r":"CEL-BOG-02","z":"CEL-BOG-02-D05","o":1,"p":327029,"i":480,"f":1020,"v":1},{"d":5,"r":"CEL-BOG-02","z":"CEL-BOG-02-D06","o":1,"p":327038,"i":480,"f":655,"v":1},{"d":5,"r":"CEL-BOG-02","z":"CEL-BOG-02-D06","o":2,"p":327039,"i":660,"f":835,"v":1},{"d":5,"r":"CEL-BOG-02","z":"CEL-BOG-02-D06","o":3,"p":327042,"i":840,"f":1020,"v":1},{"d":6,"r":"CEL-BOG-02","z":"CEL-BOG-02-D07","o":1,"p":327041,"i":480,"f":745,"v":1},{"d":6,"r":"CEL-BOG-02","z":"CEL-BOG-02-D07","o":2,"p":327043,"i":755,"f":1020,"v":1},{"d":7,"r":"CEL-BOG-02","z":"CEL-BOG-02-D08","o":1,"p":327036,"i":480,"f":745,"v":1},{"d":7,"r":"CEL-BOG-02","z":"CEL-BOG-02-D08","o":2,"p":327037,"i":750,"f":1020,"v":1},{"d":8,"r":"CEL-BOG-02","z":"CEL-BOG-02-D01","o":1,"p":327035,"i":480,"f":1020,"v":2},{"d":9,"r":"CEL-BOG-02","z":"CEL-BOG-02-D02","o":1,"p":327034,"i":480,"f":1020,"v":2},{"d":10,"r":"CEL-BOG-02","z":"CEL-BOG-02-D03","o":1,"p":327033,"i":480,"f":1020,"v":2},{"d":11,"r":"CEL-BOG-02","z":"CEL-BOG-02-D04","o":1,"p":327031,"i":480,"f":1020,"v":2},{"d":12,"r":"CEL-BOG-02","z":"CEL-BOG-02-D05","o":1,"p":327029,"i":480,"f":1020,"v":2},{"d":13,"r":"CEL-BOG-02","z":"CEL-BOG-02-D06","o":1,"p":327038,"i":480,"f":655,"v":2},{"d":13,"r":"CEL-BOG-02","z":"CEL-BOG-02-D06","o":2,"p":327039,"i":660,"f":835,"v":2},{"d":13,"r":"CEL-BOG-02","z":"CEL-BOG-02-D06","o":3,"p":327042,"i":840,"f":1020,"v":2},{"d":14,"r":"CEL-BOG-02","z":"CEL-BOG-02-D07","o":1,"p":327041,"i":480,"f":745,"v":2},{"d":14,"r":"CEL-BOG-02","z":"CEL-BOG-02-D07","o":2,"p":327043,"i":755,"f":1020,"v":2},{"d":15,"r":"CEL-BOG-02","z":"CEL-BOG-02-D08","o":1,"p":327036,"i":480,"f":745,"v":2},{"d":15,"r":"CEL-BOG-02","z":"CEL-BOG-02-D08","o":2,"p":327037,"i":750,"f":1020,"v":2},{"d":16,"r":"CEL-BOG-02","z":"CEL-BOG-02-D01","o":1,"p":327035,"i":480,"f":1020,"v":3},{"d":17,"r":"CEL-BOG-02","z":"CEL-BOG-02-D02","o":1,"p":327034,"i":480,"f":1020,"v":3},{"d":18,"r":"CEL-BOG-02","z":"CEL-BOG-02-D03","o":1,"p":327033,"i":480,"f":1020,"v":3},{"d":19,"r":"CEL-BOG-02","z":"CEL-BOG-02-D04","o":1,"p":327031,"i":480,"f":1020,"v":3},{"d":20,"r":"CEL-BOG-02","z":"CEL-BOG-02-D05","o":1,"p":327029,"i":480,"f":1020,"v":3},{"d":21,"r":"CEL-BOG-02","z":"CEL-BOG-02-D06","o":1,"p":327038,"i":480,"f":655,"v":3},{"d":21,"r":"CEL-BOG-02","z":"CEL-BOG-02-D06","o":2,"p":327039,"i":660,"f":835,"v":3},{"d":21,"r":"CEL-BOG-02","z":"CEL-BOG-02-D06","o":3,"p":327042,"i":840,"f":1020,"v":3},{"d":22,"r":"CEL-BOG-02","z":"CEL-BOG-02-D07","o":1,"p":327041,"i":480,"f":745,"v":3},{"d":22,"r":"CEL-BOG-02","z":"CEL-BOG-02-D07","o":2,"p":327043,"i":755,"f":1020,"v":3},{"d":23,"r":"CEL-BOG-02","z":"CEL-BOG-02-D08","o":1,"p":327036,"i":480,"f":745,"v":3},{"d":23,"r":"CEL-BOG-02","z":"CEL-BOG-02-D08","o":2,"p":327037,"i":750,"f":1020,"v":3},{"d":24,"r":"CEL-BOG-02","z":"CEL-BOG-02-D01","o":1,"p":327035,"i":480,"f":1020,"v":4},{"d":25,"r":"CEL-BOG-02","z":"CEL-BOG-02-D02","o":1,"p":327034,"i":480,"f":1020,"v":4},{"d":26,"r":"CEL-BOG-02","z":"CEL-BOG-02-D03","o":1,"p":327033,"i":480,"f":1020,"v":4},{"d":27,"r":"CEL-BOG-02","z":"CEL-BOG-02-D04","o":1,"p":327031,"i":480,"f":1020,"v":4},{"d":28,"r":"CEL-BOG-02","z":"CEL-BOG-02-D05","o":1,"p":327029,"i":480,"f":1020,"v":4},{"d":29,"r":"CEL-BOG-02","z":"CEL-BOG-02-D06","o":1,"p":327038,"i":480,"f":655,"v":4},{"d":29,"r":"CEL-BOG-02","z":"CEL-BOG-02-D06","o":2,"p":327039,"i":660,"f":835,"v":4},{"d":29,"r":"CEL-BOG-02","z":"CEL-BOG-02-D06","o":3,"p":327042,"i":840,"f":1020,"v":4},{"d":30,"r":"CEL-BOG-02","z":"CEL-BOG-02-D07","o":1,"p":327041,"i":480,"f":745,"v":4},{"d":30,"r":"CEL-BOG-02","z":"CEL-BOG-02-D07","o":2,"p":327043,"i":755,"f":1020,"v":4},{"d":31,"r":"CEL-BOG-02","z":"CEL-BOG-02-D08","o":1,"p":327036,"i":480,"f":745,"v":4},{"d":31,"r":"CEL-BOG-02","z":"CEL-BOG-02-D08","o":2,"p":327037,"i":750,"f":1020,"v":4},{"d":32,"r":"CEL-BOG-02","z":"CEL-BOG-02-D01","o":1,"p":327035,"i":480,"f":1020,"v":5},{"d":33,"r":"CEL-BOG-02","z":"CEL-BOG-02-D02","o":1,"p":327034,"i":480,"f":1020,"v":5},{"d":34,"r":"CEL-BOG-02","z":"CEL-BOG-02-D03","o":1,"p":327033,"i":480,"f":1020,"v":5},{"d":35,"r":"CEL-BOG-02","z":"CEL-BOG-02-D04","o":1,"p":327031,"i":480,"f":1020,"v":5},{"d":36,"r":"CEL-BOG-02","z":"CEL-BOG-02-D05","o":1,"p":327029,"i":480,"f":1020,"v":5},{"d":37,"r":"CEL-BOG-02","z":"CEL-BOG-02-D06","o":1,"p":327038,"i":480,"f":655,"v":5},{"d":37,"r":"CEL-BOG-02","z":"CEL-BOG-02-D06","o":2,"p":327039,"i":660,"f":835,"v":5},{"d":37,"r":"CEL-BOG-02","z":"CEL-BOG-02-D06","o":3,"p":327042,"i":840,"f":1020,"v":5},{"d":38,"r":"CEL-BOG-02","z":"CEL-BOG-02-D07","o":1,"p":327041,"i":480,"f":745,"v":5},{"d":38,"r":"CEL-BOG-02","z":"CEL-BOG-02-D07","o":2,"p":327043,"i":755,"f":1020,"v":5},{"d":39,"r":"CEL-BOG-02","z":"CEL-BOG-02-D08","o":1,"p":327036,"i":480,"f":745,"v":5},{"d":39,"r":"CEL-BOG-02","z":"CEL-BOG-02-D08","o":2,"p":327037,"i":750,"f":1020,"v":5},{"d":40,"r":"CEL-BOG-02","z":"CEL-BOG-02-D01","o":1,"p":327035,"i":480,"f":1020,"v":6},{"d":41,"r":"CEL-BOG-02","z":"CEL-BOG-02-D02","o":1,"p":327034,"i":480,"f":1020,"v":6},{"d":42,"r":"CEL-BOG-02","z":"CEL-BOG-02-D03","o":1,"p":327033,"i":480,"f":1020,"v":6},{"d":43,"r":"CEL-BOG-02","z":"CEL-BOG-02-D04","o":1,"p":327031,"i":480,"f":1020,"v":6},{"d":44,"r":"CEL-BOG-02","z":"CEL-BOG-02-D05","o":1,"p":327029,"i":480,"f":1020,"v":6},{"d":0,"r":"CEL-BUC-01","z":"CEL-BUC-01-D01","o":1,"p":327069,"i":480,"f":655,"v":1},{"d":0,"r":"CEL-BUC-01","z":"CEL-BUC-01-D01","o":2,"p":327079,"i":660,"f":835,"v":1},{"d":0,"r":"CEL-BUC-01","z":"CEL-BUC-01-D01","o":3,"p":327074,"i":840,"f":1020,"v":1},{"d":1,"r":"CEL-BUC-01","z":"CEL-BUC-01-D02","o":1,"p":327073,"i":480,"f":1020,"v":1},{"d":2,"r":"CEL-BUC-01","z":"CEL-BUC-01-D03","o":1,"p":327067,"i":480,"f":745,"v":1},{"d":2,"r":"CEL-BUC-01","z":"CEL-BUC-01-D03","o":2,"p":327070,"i":750,"f":1020,"v":1},{"d":3,"r":"CEL-BUC-01","z":"CEL-BUC-01-D04","o":1,"p":327075,"i":480,"f":655,"v":1},{"d":3,"r":"CEL-BUC-01","z":"CEL-BUC-01-D04","o":2,"p":327066,"i":665,"f":840,"v":1},{"d":3,"r":"CEL-BUC-01","z":"CEL-BUC-01-D04","o":3,"p":327082,"i":845,"f":1020,"v":1},{"d":4,"r":"CEL-BUC-01","z":"CEL-BUC-01-D05","o":1,"p":327065,"i":480,"f":655,"v":1},{"d":4,"r":"CEL-BUC-01","z":"CEL-BUC-01-D05","o":2,"p":327068,"i":660,"f":835,"v":1},{"d":4,"r":"CEL-BUC-01","z":"CEL-BUC-01-D05","o":3,"p":327078,"i":840,"f":1020,"v":1},{"d":5,"r":"CEL-BUC-01","z":"CEL-BUC-01-D06","o":1,"p":327076,"i":480,"f":745,"v":1},{"d":5,"r":"CEL-BUC-01","z":"CEL-BUC-01-D06","o":2,"p":327077,"i":750,"f":1020,"v":1},{"d":6,"r":"CEL-BUC-01","z":"CEL-BUC-01-D07","o":1,"p":327080,"i":480,"f":1020,"v":1},{"d":7,"r":"CEL-BUC-01","z":"CEL-BUC-01-D08","o":1,"p":327081,"i":480,"f":1020,"v":1},{"d":8,"r":"CEL-BUC-01","z":"CEL-BUC-01-D01","o":1,"p":327069,"i":480,"f":655,"v":2},{"d":8,"r":"CEL-BUC-01","z":"CEL-BUC-01-D01","o":2,"p":327079,"i":660,"f":835,"v":2},{"d":8,"r":"CEL-BUC-01","z":"CEL-BUC-01-D01","o":3,"p":327074,"i":840,"f":1020,"v":2},{"d":9,"r":"CEL-BUC-01","z":"CEL-BUC-01-D02","o":1,"p":327073,"i":480,"f":1020,"v":2},{"d":10,"r":"CEL-BUC-01","z":"CEL-BUC-01-D03","o":1,"p":327067,"i":480,"f":745,"v":2},{"d":10,"r":"CEL-BUC-01","z":"CEL-BUC-01-D03","o":2,"p":327070,"i":750,"f":1020,"v":2},{"d":11,"r":"CEL-BUC-01","z":"CEL-BUC-01-D04","o":1,"p":327075,"i":480,"f":655,"v":2},{"d":11,"r":"CEL-BUC-01","z":"CEL-BUC-01-D04","o":2,"p":327066,"i":665,"f":840,"v":2},{"d":11,"r":"CEL-BUC-01","z":"CEL-BUC-01-D04","o":3,"p":327082,"i":845,"f":1020,"v":2},{"d":12,"r":"CEL-BUC-01","z":"CEL-BUC-01-D05","o":1,"p":327065,"i":480,"f":655,"v":2},{"d":12,"r":"CEL-BUC-01","z":"CEL-BUC-01-D05","o":2,"p":327068,"i":660,"f":835,"v":2},{"d":12,"r":"CEL-BUC-01","z":"CEL-BUC-01-D05","o":3,"p":327078,"i":840,"f":1020,"v":2},{"d":13,"r":"CEL-BUC-01","z":"CEL-BUC-01-D06","o":1,"p":327076,"i":480,"f":745,"v":2},{"d":13,"r":"CEL-BUC-01","z":"CEL-BUC-01-D06","o":2,"p":327077,"i":750,"f":1020,"v":2},{"d":14,"r":"CEL-BUC-01","z":"CEL-BUC-01-D07","o":1,"p":327080,"i":480,"f":1020,"v":2},{"d":15,"r":"CEL-BUC-01","z":"CEL-BUC-01-D08","o":1,"p":327081,"i":480,"f":1020,"v":2},{"d":16,"r":"CEL-BUC-01","z":"CEL-BUC-01-D01","o":1,"p":327069,"i":480,"f":655,"v":3},{"d":16,"r":"CEL-BUC-01","z":"CEL-BUC-01-D01","o":2,"p":327079,"i":660,"f":835,"v":3},{"d":16,"r":"CEL-BUC-01","z":"CEL-BUC-01-D01","o":3,"p":327074,"i":840,"f":1020,"v":3},{"d":17,"r":"CEL-BUC-01","z":"CEL-BUC-01-D02","o":1,"p":327073,"i":480,"f":1020,"v":3},{"d":18,"r":"CEL-BUC-01","z":"CEL-BUC-01-D03","o":1,"p":327067,"i":480,"f":745,"v":3},{"d":18,"r":"CEL-BUC-01","z":"CEL-BUC-01-D03","o":2,"p":327070,"i":750,"f":1020,"v":3},{"d":19,"r":"CEL-BUC-01","z":"CEL-BUC-01-D04","o":1,"p":327075,"i":480,"f":655,"v":3},{"d":19,"r":"CEL-BUC-01","z":"CEL-BUC-01-D04","o":2,"p":327066,"i":665,"f":840,"v":3},{"d":19,"r":"CEL-BUC-01","z":"CEL-BUC-01-D04","o":3,"p":327082,"i":845,"f":1020,"v":3},{"d":20,"r":"CEL-BUC-01","z":"CEL-BUC-01-D05","o":1,"p":327065,"i":480,"f":655,"v":3},{"d":20,"r":"CEL-BUC-01","z":"CEL-BUC-01-D05","o":2,"p":327068,"i":660,"f":835,"v":3},{"d":20,"r":"CEL-BUC-01","z":"CEL-BUC-01-D05","o":3,"p":327078,"i":840,"f":1020,"v":3},{"d":21,"r":"CEL-BUC-01","z":"CEL-BUC-01-D06","o":1,"p":327076,"i":480,"f":745,"v":3},{"d":21,"r":"CEL-BUC-01","z":"CEL-BUC-01-D06","o":2,"p":327077,"i":750,"f":1020,"v":3},{"d":22,"r":"CEL-BUC-01","z":"CEL-BUC-01-D07","o":1,"p":327080,"i":480,"f":1020,"v":3},{"d":23,"r":"CEL-BUC-01","z":"CEL-BUC-01-D08","o":1,"p":327081,"i":480,"f":1020,"v":3},{"d":24,"r":"CEL-BUC-01","z":"CEL-BUC-01-D01","o":1,"p":327069,"i":480,"f":655,"v":4},{"d":24,"r":"CEL-BUC-01","z":"CEL-BUC-01-D01","o":2,"p":327079,"i":660,"f":835,"v":4},{"d":24,"r":"CEL-BUC-01","z":"CEL-BUC-01-D01","o":3,"p":327074,"i":840,"f":1020,"v":4},{"d":25,"r":"CEL-BUC-01","z":"CEL-BUC-01-D02","o":1,"p":327073,"i":480,"f":1020,"v":4},{"d":26,"r":"CEL-BUC-01","z":"CEL-BUC-01-D03","o":1,"p":327067,"i":480,"f":745,"v":4},{"d":26,"r":"CEL-BUC-01","z":"CEL-BUC-01-D03","o":2,"p":327070,"i":750,"f":1020,"v":4},{"d":27,"r":"CEL-BUC-01","z":"CEL-BUC-01-D04","o":1,"p":327075,"i":480,"f":655,"v":4},{"d":27,"r":"CEL-BUC-01","z":"CEL-BUC-01-D04","o":2,"p":327066,"i":665,"f":840,"v":4},{"d":27,"r":"CEL-BUC-01","z":"CEL-BUC-01-D04","o":3,"p":327082,"i":845,"f":1020,"v":4},{"d":28,"r":"CEL-BUC-01","z":"CEL-BUC-01-D05","o":1,"p":327065,"i":480,"f":655,"v":4},{"d":28,"r":"CEL-BUC-01","z":"CEL-BUC-01-D05","o":2,"p":327068,"i":660,"f":835,"v":4},{"d":28,"r":"CEL-BUC-01","z":"CEL-BUC-01-D05","o":3,"p":327078,"i":840,"f":1020,"v":4},{"d":29,"r":"CEL-BUC-01","z":"CEL-BUC-01-D06","o":1,"p":327076,"i":480,"f":745,"v":4},{"d":29,"r":"CEL-BUC-01","z":"CEL-BUC-01-D06","o":2,"p":327077,"i":750,"f":1020,"v":4},{"d":30,"r":"CEL-BUC-01","z":"CEL-BUC-01-D07","o":1,"p":327080,"i":480,"f":1020,"v":4},{"d":31,"r":"CEL-BUC-01","z":"CEL-BUC-01-D08","o":1,"p":327081,"i":480,"f":1020,"v":4},{"d":32,"r":"CEL-BUC-01","z":"CEL-BUC-01-D01","o":1,"p":327069,"i":480,"f":655,"v":5},{"d":32,"r":"CEL-BUC-01","z":"CEL-BUC-01-D01","o":2,"p":327079,"i":660,"f":835,"v":5},{"d":32,"r":"CEL-BUC-01","z":"CEL-BUC-01-D01","o":3,"p":327074,"i":840,"f":1020,"v":5},{"d":33,"r":"CEL-BUC-01","z":"CEL-BUC-01-D02","o":1,"p":327073,"i":480,"f":1020,"v":5},{"d":34,"r":"CEL-BUC-01","z":"CEL-BUC-01-D03","o":1,"p":327067,"i":480,"f":745,"v":5},{"d":34,"r":"CEL-BUC-01","z":"CEL-BUC-01-D03","o":2,"p":327070,"i":750,"f":1020,"v":5},{"d":35,"r":"CEL-BUC-01","z":"CEL-BUC-01-D04","o":1,"p":327075,"i":480,"f":655,"v":5},{"d":35,"r":"CEL-BUC-01","z":"CEL-BUC-01-D04","o":2,"p":327066,"i":665,"f":840,"v":5},{"d":35,"r":"CEL-BUC-01","z":"CEL-BUC-01-D04","o":3,"p":327082,"i":845,"f":1020,"v":5},{"d":36,"r":"CEL-BUC-01","z":"CEL-BUC-01-D05","o":1,"p":327065,"i":480,"f":655,"v":5},{"d":36,"r":"CEL-BUC-01","z":"CEL-BUC-01-D05","o":2,"p":327068,"i":660,"f":835,"v":5},{"d":36,"r":"CEL-BUC-01","z":"CEL-BUC-01-D05","o":3,"p":327078,"i":840,"f":1020,"v":5},{"d":37,"r":"CEL-BUC-01","z":"CEL-BUC-01-D06","o":1,"p":327076,"i":480,"f":745,"v":5},{"d":37,"r":"CEL-BUC-01","z":"CEL-BUC-01-D06","o":2,"p":327077,"i":750,"f":1020,"v":5},{"d":38,"r":"CEL-BUC-01","z":"CEL-BUC-01-D07","o":1,"p":327080,"i":480,"f":1020,"v":5},{"d":39,"r":"CEL-BUC-01","z":"CEL-BUC-01-D08","o":1,"p":327081,"i":480,"f":1020,"v":5},{"d":40,"r":"CEL-BUC-01","z":"CEL-BUC-01-D01","o":1,"p":327069,"i":480,"f":655,"v":6},{"d":40,"r":"CEL-BUC-01","z":"CEL-BUC-01-D01","o":2,"p":327079,"i":660,"f":835,"v":6},{"d":40,"r":"CEL-BUC-01","z":"CEL-BUC-01-D01","o":3,"p":327074,"i":840,"f":1020,"v":6},{"d":41,"r":"CEL-BUC-01","z":"CEL-BUC-01-D02","o":1,"p":327073,"i":480,"f":1020,"v":6},{"d":42,"r":"CEL-BUC-01","z":"CEL-BUC-01-D03","o":1,"p":327067,"i":480,"f":745,"v":6},{"d":42,"r":"CEL-BUC-01","z":"CEL-BUC-01-D03","o":2,"p":327070,"i":750,"f":1020,"v":6},{"d":43,"r":"CEL-BUC-01","z":"CEL-BUC-01-D04","o":1,"p":327075,"i":480,"f":655,"v":6},{"d":43,"r":"CEL-BUC-01","z":"CEL-BUC-01-D04","o":2,"p":327066,"i":665,"f":840,"v":6},{"d":43,"r":"CEL-BUC-01","z":"CEL-BUC-01-D04","o":3,"p":327082,"i":845,"f":1020,"v":6},{"d":44,"r":"CEL-BUC-01","z":"CEL-BUC-01-D05","o":1,"p":327065,"i":480,"f":655,"v":6},{"d":44,"r":"CEL-BUC-01","z":"CEL-BUC-01-D05","o":2,"p":327068,"i":660,"f":835,"v":6},{"d":44,"r":"CEL-BUC-01","z":"CEL-BUC-01-D05","o":3,"p":327078,"i":840,"f":1020,"v":6},{"d":0,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":1},{"d":0,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":1},{"d":1,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":1},{"d":1,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":1},{"d":1,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":1},{"d":2,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":2},{"d":2,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":2},{"d":3,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":2},{"d":3,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":2},{"d":3,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":2},{"d":4,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":3},{"d":4,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":3},{"d":5,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":3},{"d":5,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":3},{"d":5,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":3},{"d":6,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":4},{"d":6,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":4},{"d":7,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":4},{"d":7,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":4},{"d":7,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":4},{"d":8,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":5},{"d":8,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":5},{"d":9,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":5},{"d":9,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":5},{"d":9,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":5},{"d":10,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":6},{"d":10,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":6},{"d":11,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":6},{"d":11,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":6},{"d":11,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":6},{"d":12,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":7},{"d":12,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":7},{"d":13,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":7},{"d":13,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":7},{"d":13,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":7},{"d":14,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":8},{"d":14,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":8},{"d":15,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":8},{"d":15,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":8},{"d":15,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":8},{"d":16,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":9},{"d":16,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":9},{"d":17,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":9},{"d":17,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":9},{"d":17,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":9},{"d":18,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":10},{"d":18,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":10},{"d":19,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":10},{"d":19,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":10},{"d":19,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":10},{"d":20,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":11},{"d":20,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":11},{"d":21,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":11},{"d":21,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":11},{"d":21,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":11},{"d":22,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":12},{"d":22,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":12},{"d":23,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":12},{"d":23,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":12},{"d":23,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":12},{"d":24,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":13},{"d":24,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":13},{"d":25,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":13},{"d":25,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":13},{"d":25,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":13},{"d":26,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":14},{"d":26,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":14},{"d":27,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":14},{"d":27,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":14},{"d":27,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":14},{"d":28,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":15},{"d":28,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":15},{"d":29,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":15},{"d":29,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":15},{"d":29,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":15},{"d":30,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":16},{"d":30,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":16},{"d":31,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":16},{"d":31,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":16},{"d":31,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":16},{"d":32,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":17},{"d":32,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":17},{"d":33,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":17},{"d":33,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":17},{"d":33,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":17},{"d":34,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":18},{"d":34,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":18},{"d":35,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":18},{"d":35,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":18},{"d":35,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":18},{"d":36,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":19},{"d":36,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":19},{"d":37,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":19},{"d":37,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":19},{"d":37,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":19},{"d":38,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":20},{"d":38,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":20},{"d":39,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":20},{"d":39,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":20},{"d":39,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":20},{"d":40,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":21},{"d":40,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":21},{"d":41,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":21},{"d":41,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":21},{"d":41,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":21},{"d":42,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":22},{"d":42,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":22},{"d":43,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":1,"p":327024,"i":480,"f":655,"v":22},{"d":43,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":2,"p":327027,"i":660,"f":835,"v":22},{"d":43,"r":"CEL-BCB-01","z":"CEL-BCB-01-D02","o":3,"p":327026,"i":840,"f":1020,"v":22},{"d":44,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":1,"p":327025,"i":480,"f":745,"v":23},{"d":44,"r":"CEL-BCB-01","z":"CEL-BCB-01-D01","o":2,"p":327028,"i":750,"f":1020,"v":23},{"d":0,"r":"CEL-CAL-01","z":"CEL-CAL-01-D01","o":1,"p":327089,"i":480,"f":1020,"v":1},{"d":1,"r":"CEL-CAL-01","z":"CEL-CAL-01-D02","o":1,"p":327086,"i":480,"f":1020,"v":1},{"d":2,"r":"CEL-CAL-01","z":"CEL-CAL-01-D03","o":1,"p":327083,"i":480,"f":745,"v":1},{"d":2,"r":"CEL-CAL-01","z":"CEL-CAL-01-D03","o":2,"p":327084,"i":750,"f":1020,"v":1},{"d":3,"r":"CEL-CAL-01","z":"CEL-CAL-01-D04","o":1,"p":327085,"i":480,"f":1020,"v":1},{"d":4,"r":"CEL-CAL-01","z":"CEL-CAL-01-D05","o":1,"p":327087,"i":480,"f":745,"v":1},{"d":4,"r":"CEL-CAL-01","z":"CEL-CAL-01-D05","o":2,"p":327088,"i":750,"f":1020,"v":1},{"d":5,"r":"CEL-CAL-01","z":"CEL-CAL-01-D01","o":1,"p":327089,"i":480,"f":1020,"v":2},{"d":6,"r":"CEL-CAL-01","z":"CEL-CAL-01-D02","o":1,"p":327086,"i":480,"f":1020,"v":2},{"d":7,"r":"CEL-CAL-01","z":"CEL-CAL-01-D03","o":1,"p":327083,"i":480,"f":745,"v":2},{"d":7,"r":"CEL-CAL-01","z":"CEL-CAL-01-D03","o":2,"p":327084,"i":750,"f":1020,"v":2},{"d":8,"r":"CEL-CAL-01","z":"CEL-CAL-01-D04","o":1,"p":327085,"i":480,"f":1020,"v":2},{"d":9,"r":"CEL-CAL-01","z":"CEL-CAL-01-D05","o":1,"p":327087,"i":480,"f":745,"v":2},{"d":9,"r":"CEL-CAL-01","z":"CEL-CAL-01-D05","o":2,"p":327088,"i":750,"f":1020,"v":2},{"d":10,"r":"CEL-CAL-01","z":"CEL-CAL-01-D01","o":1,"p":327089,"i":480,"f":1020,"v":3},{"d":11,"r":"CEL-CAL-01","z":"CEL-CAL-01-D02","o":1,"p":327086,"i":480,"f":1020,"v":3},{"d":12,"r":"CEL-CAL-01","z":"CEL-CAL-01-D03","o":1,"p":327083,"i":480,"f":745,"v":3},{"d":12,"r":"CEL-CAL-01","z":"CEL-CAL-01-D03","o":2,"p":327084,"i":750,"f":1020,"v":3},{"d":13,"r":"CEL-CAL-01","z":"CEL-CAL-01-D04","o":1,"p":327085,"i":480,"f":1020,"v":3},{"d":14,"r":"CEL-CAL-01","z":"CEL-CAL-01-D05","o":1,"p":327087,"i":480,"f":745,"v":3},{"d":14,"r":"CEL-CAL-01","z":"CEL-CAL-01-D05","o":2,"p":327088,"i":750,"f":1020,"v":3},{"d":15,"r":"CEL-CAL-01","z":"CEL-CAL-01-D01","o":1,"p":327089,"i":480,"f":1020,"v":4},{"d":16,"r":"CEL-CAL-01","z":"CEL-CAL-01-D02","o":1,"p":327086,"i":480,"f":1020,"v":4},{"d":17,"r":"CEL-CAL-01","z":"CEL-CAL-01-D03","o":1,"p":327083,"i":480,"f":745,"v":4},{"d":17,"r":"CEL-CAL-01","z":"CEL-CAL-01-D03","o":2,"p":327084,"i":750,"f":1020,"v":4},{"d":18,"r":"CEL-CAL-01","z":"CEL-CAL-01-D04","o":1,"p":327085,"i":480,"f":1020,"v":4},{"d":19,"r":"CEL-CAL-01","z":"CEL-CAL-01-D05","o":1,"p":327087,"i":480,"f":745,"v":4},{"d":19,"r":"CEL-CAL-01","z":"CEL-CAL-01-D05","o":2,"p":327088,"i":750,"f":1020,"v":4},{"d":20,"r":"CEL-CAL-01","z":"CEL-CAL-01-D01","o":1,"p":327089,"i":480,"f":1020,"v":5},{"d":21,"r":"CEL-CAL-01","z":"CEL-CAL-01-D02","o":1,"p":327086,"i":480,"f":1020,"v":5},{"d":22,"r":"CEL-CAL-01","z":"CEL-CAL-01-D03","o":1,"p":327083,"i":480,"f":745,"v":5},{"d":22,"r":"CEL-CAL-01","z":"CEL-CAL-01-D03","o":2,"p":327084,"i":750,"f":1020,"v":5},{"d":23,"r":"CEL-CAL-01","z":"CEL-CAL-01-D04","o":1,"p":327085,"i":480,"f":1020,"v":5},{"d":24,"r":"CEL-CAL-01","z":"CEL-CAL-01-D05","o":1,"p":327087,"i":480,"f":745,"v":5},{"d":24,"r":"CEL-CAL-01","z":"CEL-CAL-01-D05","o":2,"p":327088,"i":750,"f":1020,"v":5},{"d":25,"r":"CEL-CAL-01","z":"CEL-CAL-01-D01","o":1,"p":327089,"i":480,"f":1020,"v":6},{"d":26,"r":"CEL-CAL-01","z":"CEL-CAL-01-D02","o":1,"p":327086,"i":480,"f":1020,"v":6},{"d":27,"r":"CEL-CAL-01","z":"CEL-CAL-01-D03","o":1,"p":327083,"i":480,"f":745,"v":6},{"d":27,"r":"CEL-CAL-01","z":"CEL-CAL-01-D03","o":2,"p":327084,"i":750,"f":1020,"v":6},{"d":28,"r":"CEL-CAL-01","z":"CEL-CAL-01-D04","o":1,"p":327085,"i":480,"f":1020,"v":6},{"d":29,"r":"CEL-CAL-01","z":"CEL-CAL-01-D05","o":1,"p":327087,"i":480,"f":745,"v":6},{"d":29,"r":"CEL-CAL-01","z":"CEL-CAL-01-D05","o":2,"p":327088,"i":750,"f":1020,"v":6},{"d":30,"r":"CEL-CAL-01","z":"CEL-CAL-01-D01","o":1,"p":327089,"i":480,"f":1020,"v":7},{"d":31,"r":"CEL-CAL-01","z":"CEL-CAL-01-D02","o":1,"p":327086,"i":480,"f":1020,"v":7},{"d":32,"r":"CEL-CAL-01","z":"CEL-CAL-01-D03","o":1,"p":327083,"i":480,"f":745,"v":7},{"d":32,"r":"CEL-CAL-01","z":"CEL-CAL-01-D03","o":2,"p":327084,"i":750,"f":1020,"v":7},{"d":33,"r":"CEL-CAL-01","z":"CEL-CAL-01-D04","o":1,"p":327085,"i":480,"f":1020,"v":7},{"d":34,"r":"CEL-CAL-01","z":"CEL-CAL-01-D05","o":1,"p":327087,"i":480,"f":745,"v":7},{"d":34,"r":"CEL-CAL-01","z":"CEL-CAL-01-D05","o":2,"p":327088,"i":750,"f":1020,"v":7},{"d":35,"r":"CEL-CAL-01","z":"CEL-CAL-01-D01","o":1,"p":327089,"i":480,"f":1020,"v":8},{"d":36,"r":"CEL-CAL-01","z":"CEL-CAL-01-D02","o":1,"p":327086,"i":480,"f":1020,"v":8},{"d":37,"r":"CEL-CAL-01","z":"CEL-CAL-01-D03","o":1,"p":327083,"i":480,"f":745,"v":8},{"d":37,"r":"CEL-CAL-01","z":"CEL-CAL-01-D03","o":2,"p":327084,"i":750,"f":1020,"v":8},{"d":38,"r":"CEL-CAL-01","z":"CEL-CAL-01-D04","o":1,"p":327085,"i":480,"f":1020,"v":8},{"d":39,"r":"CEL-CAL-01","z":"CEL-CAL-01-D05","o":1,"p":327087,"i":480,"f":745,"v":8},{"d":39,"r":"CEL-CAL-01","z":"CEL-CAL-01-D05","o":2,"p":327088,"i":750,"f":1020,"v":8},{"d":40,"r":"CEL-CAL-01","z":"CEL-CAL-01-D01","o":1,"p":327089,"i":480,"f":1020,"v":9},{"d":41,"r":"CEL-CAL-01","z":"CEL-CAL-01-D02","o":1,"p":327086,"i":480,"f":1020,"v":9},{"d":42,"r":"CEL-CAL-01","z":"CEL-CAL-01-D03","o":1,"p":327083,"i":480,"f":745,"v":9},{"d":42,"r":"CEL-CAL-01","z":"CEL-CAL-01-D03","o":2,"p":327084,"i":750,"f":1020,"v":9},{"d":43,"r":"CEL-CAL-01","z":"CEL-CAL-01-D04","o":1,"p":327085,"i":480,"f":1020,"v":9},{"d":44,"r":"CEL-CAL-01","z":"CEL-CAL-01-D05","o":1,"p":327087,"i":480,"f":745,"v":9},{"d":44,"r":"CEL-CAL-01","z":"CEL-CAL-01-D05","o":2,"p":327088,"i":750,"f":1020,"v":9},{"d":0,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":1},{"d":0,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":1},{"d":0,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":1},{"d":1,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":1},{"d":1,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":1},{"d":2,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":2},{"d":2,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":2},{"d":2,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":2},{"d":3,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":2},{"d":3,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":2},{"d":4,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":3},{"d":4,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":3},{"d":4,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":3},{"d":5,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":3},{"d":5,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":3},{"d":6,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":4},{"d":6,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":4},{"d":6,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":4},{"d":7,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":4},{"d":7,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":4},{"d":8,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":5},{"d":8,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":5},{"d":8,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":5},{"d":9,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":5},{"d":9,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":5},{"d":10,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":6},{"d":10,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":6},{"d":10,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":6},{"d":11,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":6},{"d":11,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":6},{"d":12,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":7},{"d":12,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":7},{"d":12,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":7},{"d":13,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":7},{"d":13,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":7},{"d":14,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":8},{"d":14,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":8},{"d":14,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":8},{"d":15,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":8},{"d":15,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":8},{"d":16,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":9},{"d":16,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":9},{"d":16,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":9},{"d":17,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":9},{"d":17,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":9},{"d":18,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":10},{"d":18,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":10},{"d":18,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":10},{"d":19,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":10},{"d":19,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":10},{"d":20,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":11},{"d":20,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":11},{"d":20,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":11},{"d":21,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":11},{"d":21,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":11},{"d":22,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":12},{"d":22,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":12},{"d":22,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":12},{"d":23,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":12},{"d":23,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":12},{"d":24,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":13},{"d":24,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":13},{"d":24,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":13},{"d":25,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":13},{"d":25,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":13},{"d":26,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":14},{"d":26,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":14},{"d":26,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":14},{"d":27,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":14},{"d":27,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":14},{"d":28,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":15},{"d":28,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":15},{"d":28,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":15},{"d":29,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":15},{"d":29,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":15},{"d":30,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":16},{"d":30,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":16},{"d":30,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":16},{"d":31,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":16},{"d":31,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":16},{"d":32,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":17},{"d":32,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":17},{"d":32,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":17},{"d":33,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":17},{"d":33,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":17},{"d":34,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":18},{"d":34,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":18},{"d":34,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":18},{"d":35,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":18},{"d":35,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":18},{"d":36,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":19},{"d":36,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":19},{"d":36,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":19},{"d":37,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":19},{"d":37,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":19},{"d":38,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":20},{"d":38,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":20},{"d":38,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":20},{"d":39,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":20},{"d":39,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":20},{"d":40,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":21},{"d":40,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":21},{"d":40,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":21},{"d":41,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":21},{"d":41,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":21},{"d":42,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":22},{"d":42,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":22},{"d":42,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":22},{"d":43,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":1,"p":327090,"i":480,"f":745,"v":22},{"d":43,"r":"CEL-FAC-01","z":"CEL-FAC-01-D02","o":2,"p":327094,"i":750,"f":1020,"v":22},{"d":44,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":1,"p":327091,"i":480,"f":655,"v":23},{"d":44,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":2,"p":327092,"i":660,"f":835,"v":23},{"d":44,"r":"CEL-FAC-01","z":"CEL-FAC-01-D01","o":3,"p":327093,"i":840,"f":1020,"v":23},{"d":0,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":1,"p":327021,"i":480,"f":745,"v":1},{"d":0,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":2,"p":327023,"i":750,"f":1020,"v":1},{"d":1,"r":"CEL-ARA-01","z":"CEL-ARA-01-D02","o":1,"p":327020,"i":480,"f":1020,"v":1},{"d":2,"r":"CEL-ARA-01","z":"CEL-ARA-01-D03","o":1,"p":327022,"i":480,"f":1020,"v":1},{"d":3,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":1,"p":327021,"i":480,"f":745,"v":2},{"d":3,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":2,"p":327023,"i":750,"f":1020,"v":2},{"d":4,"r":"CEL-ARA-01","z":"CEL-ARA-01-D02","o":1,"p":327020,"i":480,"f":1020,"v":2},{"d":5,"r":"CEL-ARA-01","z":"CEL-ARA-01-D03","o":1,"p":327022,"i":480,"f":1020,"v":2},{"d":6,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":1,"p":327021,"i":480,"f":745,"v":3},{"d":6,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":2,"p":327023,"i":750,"f":1020,"v":3},{"d":7,"r":"CEL-ARA-01","z":"CEL-ARA-01-D02","o":1,"p":327020,"i":480,"f":1020,"v":3},{"d":8,"r":"CEL-ARA-01","z":"CEL-ARA-01-D03","o":1,"p":327022,"i":480,"f":1020,"v":3},{"d":9,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":1,"p":327021,"i":480,"f":745,"v":4},{"d":9,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":2,"p":327023,"i":750,"f":1020,"v":4},{"d":10,"r":"CEL-ARA-01","z":"CEL-ARA-01-D02","o":1,"p":327020,"i":480,"f":1020,"v":4},{"d":11,"r":"CEL-ARA-01","z":"CEL-ARA-01-D03","o":1,"p":327022,"i":480,"f":1020,"v":4},{"d":12,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":1,"p":327021,"i":480,"f":745,"v":5},{"d":12,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":2,"p":327023,"i":750,"f":1020,"v":5},{"d":13,"r":"CEL-ARA-01","z":"CEL-ARA-01-D02","o":1,"p":327020,"i":480,"f":1020,"v":5},{"d":14,"r":"CEL-ARA-01","z":"CEL-ARA-01-D03","o":1,"p":327022,"i":480,"f":1020,"v":5},{"d":15,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":1,"p":327021,"i":480,"f":745,"v":6},{"d":15,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":2,"p":327023,"i":750,"f":1020,"v":6},{"d":16,"r":"CEL-ARA-01","z":"CEL-ARA-01-D02","o":1,"p":327020,"i":480,"f":1020,"v":6},{"d":17,"r":"CEL-ARA-01","z":"CEL-ARA-01-D03","o":1,"p":327022,"i":480,"f":1020,"v":6},{"d":18,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":1,"p":327021,"i":480,"f":745,"v":7},{"d":18,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":2,"p":327023,"i":750,"f":1020,"v":7},{"d":19,"r":"CEL-ARA-01","z":"CEL-ARA-01-D02","o":1,"p":327020,"i":480,"f":1020,"v":7},{"d":20,"r":"CEL-ARA-01","z":"CEL-ARA-01-D03","o":1,"p":327022,"i":480,"f":1020,"v":7},{"d":21,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":1,"p":327021,"i":480,"f":745,"v":8},{"d":21,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":2,"p":327023,"i":750,"f":1020,"v":8},{"d":22,"r":"CEL-ARA-01","z":"CEL-ARA-01-D02","o":1,"p":327020,"i":480,"f":1020,"v":8},{"d":23,"r":"CEL-ARA-01","z":"CEL-ARA-01-D03","o":1,"p":327022,"i":480,"f":1020,"v":8},{"d":24,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":1,"p":327021,"i":480,"f":745,"v":9},{"d":24,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":2,"p":327023,"i":750,"f":1020,"v":9},{"d":25,"r":"CEL-ARA-01","z":"CEL-ARA-01-D02","o":1,"p":327020,"i":480,"f":1020,"v":9},{"d":26,"r":"CEL-ARA-01","z":"CEL-ARA-01-D03","o":1,"p":327022,"i":480,"f":1020,"v":9},{"d":27,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":1,"p":327021,"i":480,"f":745,"v":10},{"d":27,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":2,"p":327023,"i":750,"f":1020,"v":10},{"d":28,"r":"CEL-ARA-01","z":"CEL-ARA-01-D02","o":1,"p":327020,"i":480,"f":1020,"v":10},{"d":29,"r":"CEL-ARA-01","z":"CEL-ARA-01-D03","o":1,"p":327022,"i":480,"f":1020,"v":10},{"d":30,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":1,"p":327021,"i":480,"f":745,"v":11},{"d":30,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":2,"p":327023,"i":750,"f":1020,"v":11},{"d":31,"r":"CEL-ARA-01","z":"CEL-ARA-01-D02","o":1,"p":327020,"i":480,"f":1020,"v":11},{"d":32,"r":"CEL-ARA-01","z":"CEL-ARA-01-D03","o":1,"p":327022,"i":480,"f":1020,"v":11},{"d":33,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":1,"p":327021,"i":480,"f":745,"v":12},{"d":33,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":2,"p":327023,"i":750,"f":1020,"v":12},{"d":34,"r":"CEL-ARA-01","z":"CEL-ARA-01-D02","o":1,"p":327020,"i":480,"f":1020,"v":12},{"d":35,"r":"CEL-ARA-01","z":"CEL-ARA-01-D03","o":1,"p":327022,"i":480,"f":1020,"v":12},{"d":36,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":1,"p":327021,"i":480,"f":745,"v":13},{"d":36,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":2,"p":327023,"i":750,"f":1020,"v":13},{"d":37,"r":"CEL-ARA-01","z":"CEL-ARA-01-D02","o":1,"p":327020,"i":480,"f":1020,"v":13},{"d":38,"r":"CEL-ARA-01","z":"CEL-ARA-01-D03","o":1,"p":327022,"i":480,"f":1020,"v":13},{"d":39,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":1,"p":327021,"i":480,"f":745,"v":14},{"d":39,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":2,"p":327023,"i":750,"f":1020,"v":14},{"d":40,"r":"CEL-ARA-01","z":"CEL-ARA-01-D02","o":1,"p":327020,"i":480,"f":1020,"v":14},{"d":41,"r":"CEL-ARA-01","z":"CEL-ARA-01-D03","o":1,"p":327022,"i":480,"f":1020,"v":14},{"d":42,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":1,"p":327021,"i":480,"f":745,"v":15},{"d":42,"r":"CEL-ARA-01","z":"CEL-ARA-01-D01","o":2,"p":327023,"i":750,"f":1020,"v":15},{"d":43,"r":"CEL-ARA-01","z":"CEL-ARA-01-D02","o":1,"p":327020,"i":480,"f":1020,"v":15},{"d":44,"r":"CEL-ARA-01","z":"CEL-ARA-01-D03","o":1,"p":327022,"i":480,"f":1020,"v":15},{"d":0,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":1},{"d":1,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":1},{"d":2,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":2},{"d":3,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":2},{"d":4,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":3},{"d":5,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":3},{"d":6,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":4},{"d":7,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":4},{"d":8,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":5},{"d":9,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":5},{"d":10,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":6},{"d":11,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":6},{"d":12,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":7},{"d":13,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":7},{"d":14,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":8},{"d":15,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":8},{"d":16,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":9},{"d":17,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":9},{"d":18,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":10},{"d":19,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":10},{"d":20,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":11},{"d":21,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":11},{"d":22,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":12},{"d":23,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":12},{"d":24,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":13},{"d":25,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":13},{"d":26,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":14},{"d":27,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":14},{"d":28,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":15},{"d":29,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":15},{"d":30,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":16},{"d":31,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":16},{"d":32,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":17},{"d":33,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":17},{"d":34,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":18},{"d":35,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":18},{"d":36,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":19},{"d":37,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":19},{"d":38,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":20},{"d":39,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":20},{"d":40,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":21},{"d":41,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":21},{"d":42,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":22},{"d":43,"r":"CEL-NEI-01","z":"CEL-NEI-01-D02","o":1,"p":327097,"i":480,"f":1020,"v":22},{"d":44,"r":"CEL-NEI-01","z":"CEL-NEI-01-D01","o":1,"p":327096,"i":480,"f":1020,"v":23},{"d":0,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":1},{"d":1,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":2},{"d":2,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":3},{"d":3,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":4},{"d":4,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":5},{"d":5,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":6},{"d":6,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":7},{"d":7,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":8},{"d":8,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":9},{"d":9,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":10},{"d":10,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":11},{"d":11,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":12},{"d":12,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":13},{"d":13,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":14},{"d":14,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":15},{"d":15,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":16},{"d":16,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":17},{"d":17,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":18},{"d":18,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":19},{"d":19,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":20},{"d":20,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":21},{"d":21,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":22},{"d":22,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":23},{"d":23,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":24},{"d":24,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":25},{"d":25,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":26},{"d":26,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":27},{"d":27,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":28},{"d":28,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":29},{"d":29,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":30},{"d":30,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":31},{"d":31,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":32},{"d":32,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":33},{"d":33,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":34},{"d":34,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":35},{"d":35,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":36},{"d":36,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":37},{"d":37,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":38},{"d":38,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":39},{"d":39,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":40},{"d":40,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":41},{"d":41,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":42},{"d":42,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":43},{"d":43,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":44},{"d":44,"r":"CEL-IBA-01","z":"CEL-IBA-01-D01","o":1,"p":327095,"i":480,"f":1020,"v":45}],"planta":[{"ced":"","idf":31667,"nombre":"Angie Paola Ardila Bolaños","centro":"IBAGUE","cargo":"PROMOTOR COMERCIAL","estado":"Activo","ruta":"CEL-IBA-01"},{"ced":"","idf":31733,"nombre":"Perez Neira Linda Geraldine","centro":"BARRANCABERMEJA","cargo":"PROMOTOR COMERCIAL","estado":"Activo","ruta":"CEL-BCB-01"},{"ced":"","idf":31736,"nombre":"Cristian Duban Romero Vergara","centro":"FACATATIVA","cargo":"PROMOTOR COMERCIAL","estado":"Activo","ruta":"CEL-FAC-01"},{"ced":"","idf":31741,"nombre":"Laura Vanessa Pinerez Martines","centro":"BOGOTA","cargo":"PROMOTOR COMERCIAL","estado":"Activo","ruta":"CEL-BOG-01"},{"ced":"","idf":31755,"nombre":"Anyi Paola Nazarit Leon","centro":"CALI","cargo":"PROMOTOR COMERCIAL","estado":"Activo","ruta":"CEL-CAL-01"},{"ced":"","idf":30318,"nombre":"Johan Ivan Garzon Cristancho","centro":"BOGOTA","cargo":"ANALISTA DE INFORMACION","estado":"Activo","ruta":null},{"ced":"","idf":31722,"nombre":"Luna Oviedo Moises Gregorio","centro":"BARRANQUILLA","cargo":"PROMOTOR COMERCIAL","estado":"Activo","ruta":null},{"ced":"","idf":32126,"nombre":"Santiago Callejas Zuñiga","centro":"NEIVA","cargo":"PROMOTOR COMERCIAL","estado":"Activo","ruta":"CEL-NEI-01"},{"ced":"","idf":32223,"nombre":"Maryluz Alzate Morales","centro":"BOGOTA","cargo":"PROMOTOR COMERCIAL","estado":"Activo","ruta":"CEL-BOG-02"},{"ced":"","idf":32250,"nombre":"Mariluz Ramirez Quijano","centro":"BUCARAMANGA","cargo":"PROMOTOR COMERCIAL","estado":"Activo","ruta":"CEL-BUC-01"},{"ced":"","idf":32255,"nombre":"Mauricio Alexander Arrieta Salas","centro":"ARAUCA","cargo":"PROMOTOR COMERCIAL","estado":"Activo","ruta":"CEL-ARA-01"}],"novedades":[{"tema":"Georreferencia","detalle":"Surti Celu Pao Sucursal: DayByDay lo ubica en San Gil (6.5522, -73.1278), a 63 km de Bucaramanga. La base de metas lo pone en barrio Floridablanca (Kr 6 #9-35). DBD valida el ingreso a 300 m, así que la promotora no podrá marcar.","ids":"327081","accion":"Corregir lat/long en DayByDay antes del sábado 14/11, su día programado. Quedó solo en su día (CEL-BUC-01-D08).","prioridad":"Alta"},{"tema":"Georreferencia","detalle":"Pinilla Celulares Principal: coordenadas en el centro de Piedecuesta (17 km). La base de metas dice Floridablanca. Su dirección (Cl 9 #6-81) y la de Surti Celu Pao (Kr 6 #9-35) caen en la misma esquina, así que probablemente están juntos.","ids":"327080","accion":"Validar en qué municipio quedan los dos (Pinilla está programado el 13/11). Si están juntos, van el mismo día y el ciclo de CEL-BUC-01 baja de 8 a 7 días.","prioridad":"Alta"},{"tema":"PDV foráneo","detalle":"Buda Phone 11 tiene dirección en Yaguará (Huila), a ~40 km de Neiva (la coordenada de DBD sí es Yaguará). No se puede llegar a pie; con 2 PDV el ciclo de Santiago alterna Neiva / Yaguará día de por medio.","ids":"327097","accion":"Hoy queda programado día de por medio (ver PROGRAMACION). Definir si se visita con transporte y con qué frecuencia (p. ej., 1 vez por semana) o si se reasigna.","prioridad":"Alta"},{"tema":"Funcionarios DBD","detalle":"Municipio/regional en DBD distinto a la ciudad donde opera: Perez Neira (BUCARAMANGA→Barrancabermeja), Romero Vergara (BOGOTA→Facatativá), Nazarit (BOGOTA→Cali), Luna Oviedo (BOGOTA→Barranquilla), Callejas (IBAGUE→Neiva) y Arrieta (VILLAVICENCIO→Arauca). Los dos resaltados en amarillo en la imagen son justo los de Neiva y Arauca.","ids":"31733, 31736, 31755, 31722, 32126, 32255","accion":"Actualizar regional y municipio de cada funcionario en DayByDay.","prioridad":"Media"},{"tema":"Planta sin ruta","detalle":"Luna Oviedo Moises Gregorio (Barranquilla) está activo en la planta pero no tiene PDV de apoyo en la base de metas.","ids":"31722","accion":"Definir sus PDV de apoyo; mientras tanto no queda programado.","prioridad":"Media"},{"tema":"Funcionarios DBD","detalle":"Asesores activos en DayByDay que no están en la planta de la imagen: Dina Luz Perez Carreazo (32133) y Lina Maria Motta Marin (31543, Neiva). También siguen activos los usuarios de prueba 31400 y 31313.","ids":"32133, 31543","accion":"Validar si deben inactivarse en DayByDay.","prioridad":"Baja"},{"tema":"PDV DBD","detalle":"16 de los 72 PDV no tienen Regional en DayByDay: Arauca (4), Barrancabermeja (5), Facatativá (5) y Neiva (2).","ids":"ver hoja PDV","accion":"Completar la regional en DayByDay. En el cargue se usó el departamento.","prioridad":"Baja"},{"tema":"Georreferencia","detalle":"Nissitechne (Kr 29 #72T-16) y Surticcesorios FC (Kr 29 #45-54) tienen direcciones distintas pero quedaron a 80 m; tienen el mismo teléfono en la base de metas.","ids":"327087, 327088","accion":"Validar ubicación en campo el día que se visitan (CEL-CAL-01-D05).","prioridad":"Baja"},{"tema":"Oportunidad","detalle":"All Tecnhologys1 (ruta de Laura) queda a ~170 m de Techmovil Store Restrepo (ruta de Maryluz Alzate). Hoy ocupa un día completo solo.","ids":"327051","accion":"Si Movistar acepta pasarlo a CEL-BOG-02, el ciclo de CEL-BOG-01 baja de 11 a 10 días.","prioridad":"Opcional"},{"tema":"Nombres","detalle":"Los nombres de promotores en la base de metas no coinciden exacto con nómina/DBD (Nazayit / Nazarit, Ramirez Quijao / Quijano, Piñeres / Piñerez) y la columna Cédula viene vacía.","ids":"","accion":"Se cruzó por nombre + ciudad y quedó validado por cédula. Sugerido: pedir la base de metas con cédula.","prioridad":"Baja"}],"stats":{"pdv":72,"rutas":9,"zonas":42,"visitas":678,"maxLeg":6.7},"publico":true}</script>
+<script>
+(function () {
+  'use strict';
+  const D = JSON.parse(document.getElementById('zdata').textContent);
+  const $ = (s, el) => (el || document).querySelector(s);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const DOW = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  const DOWL = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  const MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  const pd = s => { const a = s.split('-').map(Number); return new Date(a[0], a[1] - 1, a[2]); };
+  const DATES = D.dates.map(pd);
+  const dShort = i => DOW[DATES[i].getDay()] + ' ' + DATES[i].getDate() + ' ' + MES[DATES[i].getMonth()];
+  const dLong = i => DOWL[DATES[i].getDay()] + ' ' + DATES[i].getDate() + ' de ' + ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][DATES[i].getMonth()];
+  const hhmm = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+  const n1 = x => (x == null ? '' : (Math.round(x * 10) / 10).toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+  const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const CITY_LABEL = { BOGOTA: 'Bogotá', BUCARAMANGA: 'Bucaramanga', BARRANCABERMEJA: 'Barrancabermeja', CALI: 'Cali', FACATATIVA: 'Facatativá', ARAUCA: 'Arauca', NEIVA: 'Neiva', IBAGUE: 'Ibagué' };
+  const cityName = c => CITY_LABEL[c] || c;
+  const title = s => String(s || '').toLowerCase().replace(/(^|[\s/(.-])([a-záéíóúñ])/g, (m, a, b) => a + b.toUpperCase());
+
+  // índices
+  const PDV = new Map(D.pdvs.map(p => [p.id, p]));
+  const ROUTE = new Map(D.routes.map(r => [r.code, r]));
+  const ZONE = new Map(D.zones.map(z => [z.code, z]));
+  const VRD = new Map();
+  D.visits.forEach(v => { const k = v.r + '|' + v.d; if (!VRD.has(k)) VRD.set(k, []); VRD.get(k).push(v); });
+  VRD.forEach(a => a.sort((x, y) => x.o - y.o));
+  const CITIES = [...new Set(D.routes.map(r => r.city))];
+  const pdvDates = new Map();
+  D.visits.forEach(v => { if (!pdvDates.has(v.p)) pdvDates.set(v.p, []); pdvDates.get(v.p).push(v.d); });
+
+  // asignación editable (persistencia solo en este navegador)
+  const AKEY = 'celya-zonificacion-asignacion-v1';
+  const base = Object.fromEntries(D.routes.map(r => [r.code, { ced: r.ced, idf: String(r.idf), nombre: r.nombre }]));
+  let assign = JSON.parse(JSON.stringify(base));
+  try { const s = localStorage.getItem(AKEY); if (s) { const o = JSON.parse(s); Object.keys(o).forEach(k => { if (assign[k] && o[k]) assign[k] = o[k]; }); } } catch (e) { /* sin almacenamiento */ }
+  const who = code => assign[code] || base[code];
+
+  const state = { city: 'BOGOTA', route: null, date: null, zone: null, month: 11 };
+  const idxMes = m => D.dates.map((s, i) => i).filter(i => DATES[i].getMonth() + 1 === m);
+  const CIERRES = new Set(D.cierres);
+  function fmtDates(idxs, max) {
+    if (max && idxs.length > max) return idxs.slice(0, max).map(i => DATES[i].getDate() + ' ' + MES[DATES[i].getMonth()]).join(', ') + ' y ' + (idxs.length - max) + ' más';
+    const by = {}, order = [];
+    idxs.forEach(i => { const m = DATES[i].getMonth(); if (!by[m]) { by[m] = []; order.push(m); } by[m].push(DATES[i].getDate()); });
+    return order.map(m => by[m].join(', ') + ' ' + MES[m]).join(' · ');
+  }
+
+  // colores (tokens)
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const rcol = r => css(r.slot === 2 ? '--route-2' : '--route-1');
+  const isDark = () => { const t = document.documentElement.getAttribute('data-theme'); if (t) return t === 'dark'; return !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches); };
+
+  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => { t.hidden = true; }, 4200); }
+
+  function routesInView() { return D.routes.filter(r => r.city === state.city && (!state.route || r.code === state.route)); }
+
+  function gWalk(ps) {
+    if (ps.length === 1) return 'https://www.google.com/maps/search/?api=1&query=' + ps[0].lat + ',' + ps[0].lon;
+    const o = ps[0], d = ps[ps.length - 1];
+    let u = 'https://www.google.com/maps/dir/?api=1&origin=' + o.lat + ',' + o.lon + '&destination=' + d.lat + ',' + d.lon + '&travelmode=walking';
+    if (ps.length > 2) u += '&waypoints=' + ps.slice(1, -1).map(p => p.lat + ',' + p.lon).join('%7C');
+    return u;
+  }
+  const gPoint = p => 'https://www.google.com/maps/search/?api=1&query=' + p.lat + ',' + p.lon;
+
+  // ---------- encabezado
+  function renderHeader() {
+    const s = D.stats;
+    $('#stats').innerHTML = [
+      [s.pdv, 'PDV'], [s.rutas, 'rutas'], [s.zonas, 'días de ciclo'], [s.visitas, 'visitas programadas'], [n1(s.maxLeg) + ' min', 'tramo más largo a pie']
+    ].map(([v, k]) => '<div><dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd></div>').join('');
+    $('#rules').innerHTML = [
+      '<b>Máx. ' + D.reglas.maxPdv + ' PDV</b> por día',
+      '<b>≤ ' + D.reglas.maxMin + ' min</b> a pie entre punto y punto',
+      'Si no hay nada cerca, <b>1 PDV</b> ese día',
+      'Jornada <b>' + esc(D.reglas.jornada) + '</b>, ' + esc(D.reglas.dias),
+      'Sin festivos: <b>16 nov, 8 y 25 dic</b>',
+      'La vuelta a los 72 PDV cierra el <b>' + fmtDates(D.cierres) + '</b>'
+    ].map(t => '<span class="rule">' + t + '</span>').join('');
+  }
+
+  // ---------- filtros
+  function renderFilters() {
+    $('#cityChips').innerHTML = CITIES.map(c => {
+      const rs = D.routes.filter(r => r.city === c);
+      const n = D.pdvs.filter(p => rs.some(r => r.code === p.route)).length;
+      return '<button type="button" class="chip" data-city="' + c + '" aria-pressed="' + (state.city === c) + '">' + esc(cityName(c)) + ' <small>' + n + '</small></button>';
+    }).join('');
+    const rs = D.routes.filter(r => r.city === state.city);
+    $('#routeChips').innerHTML = (rs.length > 1 ? '<button type="button" class="chip" data-route="" aria-pressed="' + (!state.route) + '">Todas</button>' : '') +
+      rs.map(r => '<button type="button" class="chip" data-route="' + r.code + '" aria-pressed="' + (state.route === r.code || rs.length === 1) + '"><span class="sw" style="background:' + rcol(r) + '"></span><span class="mono">' + r.code + '</span><span class="nm">' + esc(who(r.code).nombre) + '</span></button>').join('');
+    $('#dateChips').innerHTML = [11, 12].map(m => '<button type="button" class="chip mes" data-mes="' + m + '" aria-pressed="' + (state.month === m) + '">' + (m === 11 ? 'Nov' : 'Dic') + '</button>').join('') + '<span class="sep" aria-hidden="true"></span>' +
+      '<button type="button" class="chip date" data-date="" aria-pressed="' + (state.date === null) + '"><span>Ciclo</span><b>Todo</b></button>' +
+      idxMes(state.month).map(i => '<button type="button" class="chip date" data-date="' + i + '" aria-pressed="' + (state.date === i) + '"' + (CIERRES.has(i) ? ' title="Cierra la vuelta a los 72 PDV"' : '') + '><span>' + DOW[DATES[i].getDay()] + '</span><b>' + DATES[i].getDate() + (CIERRES.has(i) ? '✓' : '') + '</b></button>').join('');
+  }
+
+  // ---------- mapa
+  let map = null, lyr = null, lastFit = '';
+  // Fondos de Esri: no piden llave de API y cargan aunque el HTML se abra como archivo local
+  // (OpenStreetMap bloquea las páginas abiertas como archivo y CARTO ahora exige llave).
+  // Si un fondo no carga, la página pasa sola al siguiente.
+  const BKEY = 'celya-zonificacion-fondo-v2';
+  const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/';
+  const BASES = [
+    { key: 'calles', name: 'Calles', street: true, url: ESRI + 'World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+      opt: { maxZoom: 19, attribution: 'Mapa &copy; Esri, HERE, Garmin, USGS' } },
+    { key: 'gris', name: 'Gris claro', street: true, url: ESRI + 'Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+      labels: ESRI + 'Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+      opt: { maxZoom: 19, maxNativeZoom: 16, attribution: 'Mapa &copy; Esri, HERE, Garmin' } },
+    { key: 'sat', name: 'Satélite', street: false, url: ESRI + 'World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      labels: ESRI + 'Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',
+      opt: { maxZoom: 19, attribution: 'Imagen &copy; Esri, Maxar, Earthstar Geographics' } },
+  ];
+  let baseLayers = [];
+  function activeBase() { return baseLayers.findIndex(l => map && map.hasLayer(l)); }
+  function applyTileStyle() { const i = activeBase(); $('#map').classList.toggle('dark-tiles', isDark() && i >= 0 && BASES[i].street); }
+  function fallbackFrom(i) {
+    baseLayers[i]._failed = true;
+    const next = baseLayers.findIndex(l => !l._failed);
+    if (next === -1) { $('#map').classList.add('no-tiles'); $('#mapNote').hidden = false; return; }
+    map.removeLayer(baseLayers[i]); baseLayers[next].addTo(map); applyTileStyle();
+  }
+  function initMap() {
+    if (!window.L) { $('#map').innerHTML = '<div class="map-fallback">No se pudo cargar el mapa (revisa la conexión). El calendario, la zonificación y los exportables sí funcionan.</div>'; return; }
+    map = L.map('map', { zoomControl: true, attributionControl: true, zoomSnap: 0.5 });
+    map.createPane('labels'); map.getPane('labels').style.zIndex = 250; map.getPane('labels').style.pointerEvents = 'none';
+    baseLayers = BASES.map((b, i) => {
+      const t = L.tileLayer(b.url, b.opt);
+      const l = b.labels ? L.layerGroup([t, L.tileLayer(b.labels, { maxZoom: b.opt.maxZoom, maxNativeZoom: b.opt.maxNativeZoom, pane: 'labels' })]) : t;
+      l._ok = 0; l._bad = 0; l._failed = false;
+      t.on('tileload', () => { l._ok++; $('#map').classList.remove('no-tiles'); $('#mapNote').hidden = true; });
+      t.on('tileerror', () => { l._bad++; if (l._ok === 0 && l._bad >= 4 && map.hasLayer(l) && !l._failed) fallbackFrom(i); });
+      return l;
+    });
+    let start = 0;
+    try { const k = BASES.findIndex(b => b.key === localStorage.getItem(BKEY)); if (k >= 0) start = k; } catch (e) { }
+    baseLayers[start].addTo(map);
+    L.control.layers(Object.fromEntries(BASES.map((b, i) => [b.name, baseLayers[i]])), null, { position: 'topright', collapsed: true }).addTo(map);
+    map.on('baselayerchange', e => { const i = baseLayers.indexOf(e.layer); try { localStorage.setItem(BKEY, BASES[i].key); } catch (x) { } applyTileStyle(); });
+    map.attributionControl.setPrefix('Leaflet');
+    L.control.scale({ imperial: false, maxWidth: 140, position: 'bottomright' }).addTo(map);
+    lyr = L.layerGroup().addTo(map);
+    map.on('zoomend', () => $('#map').classList.toggle('z-low', map.getZoom() < 13.5));
+    map.setView([4.65, -74.1], 12);
+    applyTileStyle();
+    if (window.matchMedia) { try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyTileStyle(); renderMap(); }); } catch (e) { } }
+  }
+  function haversine(a, b) {
+    const R = 6371000, toR = x => x * Math.PI / 180;
+    const dphi = toR(b[0] - a[0]), dl = toR(b[1] - a[1]);
+    const h = Math.sin(dphi / 2) ** 2 + Math.cos(toR(a[0])) * Math.cos(toR(b[0])) * Math.sin(dl / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+  function pdvTip(p, extra) {
+    const r = ROUTE.get(p.route);
+    const ds = fmtDates(pdvDates.get(p.id) || [], 5);
+    return '<b>' + esc(p.name) + '</b><br><span class="k">' + esc(p.addr) + '</span><br>' +
+      '<span class="mono">' + esc(p.zone) + '</span> · orden ' + p.ord + ' de ' + p.nz + (extra ? ' · ' + extra : '') + '<br>' +
+      '<span class="k">ID DBD</span> ' + p.id + ' · <span class="k">site</span> ' + p.site + ' · <span class="k">meta nov.</span> ' + p.meta +
+      (ds ? '<br><span class="k">Fechas:</span> ' + esc(ds) : '') +
+      (p.alert ? '<br><b>' + esc(p.alert.short) + '</b>' : '') + '<br><span class="k">' + esc(who(r.code).nombre) + '</span>';
+  }
+  function renderMap() {
+    if (!map) return;
+    lyr.clearLayers();
+    const surface = css('--surface');
+    const rs = routesInView();
+    const dayV = state.date === null ? null : rs.flatMap(r => VRD.get(r.code + '|' + state.date) || []);
+    const dayZ = dayV ? new Set(dayV.map(v => v.z)) : null;
+    rs.forEach(r => {
+      const col = rcol(r);
+      D.zones.filter(z => z.route === r.code).forEach(z => {
+        const on = (!dayZ || dayZ.has(z.code)) && (!state.zone || state.zone === z.code);
+        const ps = z.pdvs.map(id => PDV.get(id));
+        const c = [ps.reduce((a, p) => a + p.lat, 0) / ps.length, ps.reduce((a, p) => a + p.lon, 0) / ps.length];
+        const rad = Math.max(...ps.map(p => haversine(c, [p.lat, p.lon]))) + 75;
+        L.circle(c, { radius: rad, color: col, weight: state.zone === z.code ? 2.5 : 1.2, opacity: on ? 0.9 : 0.25, fillColor: col, fillOpacity: on ? 0.12 : 0.03 })
+          .bindTooltip('<b class="mono">' + esc(z.code) + '</b><br>' + esc(title(z.sector)) + '<br>' + z.pdvs.length + ' PDV · ' + n1(z.walk) + ' min a pie en total<br><span class="k">' + z.dates.length + ' días programados:</span> ' + esc(fmtDates(z.dates, 6)), { sticky: true, className: 'ztip' })
+          .on('click', () => { state.zone = state.zone === z.code ? null : z.code; render(); })
+          .addTo(lyr);
+        const top = [c[0] + rad / 111320, c[1]];
+        L.marker(top, { icon: L.divIcon({ className: 'zlabel' + (on ? '' : ' dim'), html: '<span style="--c:' + col + '">' + z.short + '</span>', iconSize: null }), interactive: false, keyboard: false }).addTo(lyr);
+        if (ps.length > 1) L.polyline(ps.map(p => [p.lat, p.lon]), { color: col, weight: 3, opacity: on ? 0.95 : 0.25, dashArray: '1 7', lineCap: 'round' }).addTo(lyr);
+      });
+      D.pdvs.filter(p => p.route === r.code).forEach(p => {
+        const on = (!dayZ || dayZ.has(p.zone)) && (!state.zone || state.zone === p.zone);
+        L.circleMarker([p.lat, p.lon], { radius: 7, color: surface, weight: 2, fillColor: col, fillOpacity: on ? 1 : 0.35, opacity: on ? 1 : 0.5 })
+          .bindTooltip(pdvTip(p), { className: 'ztip', direction: 'top', offset: [0, -6] })
+          .on('click', () => { state.zone = p.zone; render(); })
+          .addTo(lyr);
+        if (p.alert && (p.alert.level === 'alta' || p.alert.level === 'media')) {
+          L.marker([p.lat, p.lon], { icon: L.divIcon({ className: 'alert-pin ' + p.alert.level, html: '<span>!</span>', iconSize: [18, 18], iconAnchor: [-3, 20] }), keyboard: false })
+            .bindTooltip('<b>' + esc(p.alert.short) + '</b><br>' + esc(p.alert.text), { className: 'ztip', direction: 'top' }).addTo(lyr);
+        }
+      });
+    });
+    if (dayV) dayV.forEach(v => {
+      const p = PDV.get(v.p), col = rcol(ROUTE.get(v.r));
+      L.marker([p.lat, p.lon], { icon: L.divIcon({ className: 'num-pin', html: '<span style="background:' + col + '">' + v.o + '</span>', iconSize: [26, 26], iconAnchor: [13, 13] }), zIndexOffset: 1000, keyboard: false })
+        .bindTooltip(pdvTip(p, hhmm(v.i) + '–' + hhmm(v.f)), { className: 'ztip', direction: 'top', offset: [0, -12] }).addTo(lyr);
+    });
+    fit(rs, dayV);
+    renderLegend(rs);
+  }
+  function fit(rs, dayV, force) {
+    const key = state.city + '|' + state.route + '|' + state.date + '|' + state.zone;
+    if (key === lastFit && !force) return; lastFit = key;
+    let ps;
+    if (state.zone) ps = ZONE.get(state.zone).pdvs.map(id => PDV.get(id));
+    else if (dayV && dayV.length) ps = dayV.map(v => PDV.get(v.p));
+    else { const all = D.pdvs.filter(p => rs.some(r => r.code === p.route)); ps = all.filter(p => !p.outlier); if (!ps.length) ps = all; }
+    if (!ps.length) return;
+    const b = L.latLngBounds(ps.map(p => [p.lat, p.lon]));
+    const wide = map.getSize().x > 700;
+    map.fitBounds(b.pad(ps.length > 1 ? 0.15 : 0.02), { maxZoom: 16.5, animate: !reduceMotion, paddingTopLeft: [40, 40], paddingBottomRight: [legendOpen && wide ? 250 : 40, legendOpen && wide ? 60 : 40] });
+  }
+  function flyTo(p) { if (map) { map.setView([p.lat, p.lon], 16.5, { animate: !reduceMotion }); lastFit = ''; } }
+  function renderLegend(rs) {
+    const lg = $('#legend');
+    lg.innerHTML = rs.map(r => '<div class="row"><span class="dot" style="background:' + rcol(r) + '"></span><span><span class="mono">' + r.code + '</span> · ' + esc(who(r.code).nombre) + '</span></div>').join('') +
+      '<div class="row"><span class="ring"></span><span>Zona = un día del ciclo (D01, D02…)</span></div>' +
+      '<div class="row"><span class="dash"></span><span>Camino a pie en el orden de visita</span></div>' +
+      '<div class="row"><span class="num" style="background:var(--ink-2)">1</span><span>Orden de visita del día elegido</span></div>' +
+      '<div class="row"><span class="bang">!</span><span>PDV con novedad</span></div>' +
+      '<button type="button" class="btn-text close" data-closelegend>Ocultar</button>';
+  }
+  let legendOpen = window.innerWidth > 760;
+  function setLegend(open) {
+    legendOpen = open; $('#legend').hidden = !open; $('#legendToggle').hidden = open;
+    $('#legendToggle').setAttribute('aria-expanded', String(open)); lastFit = ''; renderMap();
+  }
+
+  // ---------- panel
+  function visitList(vs, withTimes) {
+    if (withTimes === undefined) withTimes = true;
+    const ps = vs.map(v => PDV.get(v.p));
+    let h = '<ol class="visits">';
+    vs.forEach((v, k) => {
+      const p = ps[k];
+      if (k > 0) h += '<li class="walk">' + n1(p.mprev) + ' min a pie · ' + (p.dprev != null ? p.dprev.toLocaleString('es-CO') + ' m' : '') + '</li>';
+      h += '<li class="visit"><span class="n" style="background:' + rcol(ROUTE.get(v.r)) + '">' + v.o + '</span><div class="t"><b>' + esc(p.name) + '</b><small>' + esc(p.addr) + ' · ID ' + p.id + '</small>' +
+        (p.alert ? '<span class="tag ' + p.alert.level + '">' + esc(p.alert.short) + '</span>' : '') + '</div>' +
+        '<div class="hr">' + (withTimes ? hhmm(v.i) + '–' + hhmm(v.f) : '') + '<a href="' + gPoint(p) + '" target="_blank" rel="noopener">Mapa</a></div></li>';
+    });
+    return h + '</ol>';
+  }
+  function routeHead(r, extra) {
+    const w = who(r.code);
+    return '<div class="card-h"><span class="bar-c" style="background:' + rcol(r) + '"></span><div class="who"><div class="code">' + r.code + (extra ? ' · ' + esc(extra) : '') + '</div><div class="name">' + esc(w.nombre) + '</div><div class="code">ID DBD ' + esc(w.idf) + (w.ced ? ' · CC ' + esc(w.ced) : '') + '</div></div></div>';
+  }
+  function renderPanel() {
+    const rs = routesInView(), P = $('#panel');
+    let h = '';
+    if (state.zone) {
+      const z = ZONE.get(state.zone), r = ROUTE.get(z.route), ps = z.pdvs.map(id => PDV.get(id));
+      const fake = ps.map((p, k) => ({ r: r.code, p: p.id, o: k + 1, i: null, f: null }));
+      h += '<div><h2>Zona ' + esc(z.short) + '</h2><p class="lead">' + esc(title(z.sector)) + ' · ' + cityName(r.city) + '</p></div>';
+      h += '<div class="card">' + routeHead(r, z.short) + '<div class="meta"><span>' + ps.length + ' PDV</span><span>' + n1(z.walk) + ' min a pie en total</span><span>meta nov. ' + z.meta + '</span></div>';
+      h += '<div class="meta"><span>Programada ' + z.dates.length + ' días: ' + esc(fmtDates(z.dates)) + '</span></div>';
+      h += visitList(fake, false);
+      h += '<div class="link-row"><a href="' + gWalk(ps) + '" target="_blank" rel="noopener">' + (ps.length > 1 ? 'Ruta a pie en Google Maps' : 'Ver en Google Maps') + '</a><button type="button" class="btn-text" data-clearzone>Ver todo el ciclo</button></div></div>';
+    } else if (state.date !== null) {
+      h += '<div><h2>' + dLong(state.date).charAt(0).toUpperCase() + dLong(state.date).slice(1) + '</h2><p class="lead">' + cityName(state.city) + ' · día hábil ' + (state.date + 1) + ' de ' + D.dates.length + ' de la programación</p></div>';
+      rs.forEach(r => {
+        const vs = VRD.get(r.code + '|' + state.date) || [];
+        if (!vs.length) { h += '<div class="card">' + routeHead(r) + '<div class="meta">Sin programación este día.</div></div>'; return; }
+        const z = ZONE.get(vs[0].z), ps = vs.map(v => PDV.get(v.p));
+        h += '<div class="card">' + routeHead(r, z.short + (vs[0].v > 1 ? ' · vuelta ' + vs[0].v : '')) +
+          '<div class="meta"><span>' + esc(title(z.sector)) + '</span><span>' + vs.length + ' PDV</span><span>meta nov. ' + z.meta + '</span></div>' +
+          visitList(vs) + '<div class="link-row"><a href="' + gWalk(ps) + '" target="_blank" rel="noopener">' + (ps.length > 1 ? 'Ruta a pie en Google Maps' : 'Ver en Google Maps') + '</a></div></div>';
+      });
+    } else {
+      h += '<div><h2>' + cityName(state.city) + ' · ciclo completo</h2><p class="lead">Zonas en el orden en que se recorren. Toca una zona para verla.</p></div>';
+      rs.forEach(r => {
+        const zs = D.zones.filter(z => z.route === r.code);
+        const out = D.pdvs.filter(p => p.route === r.code && p.outlier);
+        h += '<div class="card">' + routeHead(r) + '<div class="meta"><span>' + D.pdvs.filter(p => p.route === r.code).length + ' PDV</span><span>' + zs.length + ' días de ciclo</span><span>' + zs.filter(z => z.pdvs.length === 1).length + ' días con 1 PDV</span></div><div class="zlist">' +
+          zs.map(z => '<button type="button" class="zitem" data-zone="' + z.code + '" aria-pressed="false"><span class="zc" style="background:' + rcol(r) + '">' + z.short + '</span><span class="zt"><b>' + esc(title(z.sector)) + '</b><small>' + z.pdvs.map(id => esc(PDV.get(id).name)).join(' · ') + '</small></span><span class="zd">' + z.pdvs.length + ' PDV<br>' + z.dates.length + ' días · desde ' + DATES[z.dates[0]].getDate() + ' ' + MES[DATES[z.dates[0]].getMonth()] + '</span></button>').join('') + '</div>' +
+          (out.length ? '<div class="outliers"><b>Fuera del encuadre del mapa</b>' + out.map(p => '<span>' + esc(p.name) + ' — ' + esc(p.alert ? p.alert.short : 'lejos del resto') + ' <button type="button" class="btn-text" data-fly="' + p.id + '">Ver</button></span>').join('') + '</div>' : '') + '</div>';
+      });
+    }
+    P.innerHTML = h;
+  }
+
+  // ---------- calendario
+  function renderCalendar() {
+    const T = $('#cal');
+    const CAL = D.cal.filter(c => pd(c.iso).getMonth() + 1 === state.month);
+    $('#calTitle').textContent = 'Calendario de ' + (state.month === 11 ? 'noviembre' : 'diciembre');
+    let h = '<thead><tr><th class="rh">Ruta</th>' + CAL.map(c => {
+      const d = pd(c.iso);
+      if (c.kind !== 'lab') return '<th class="off"><span class="w">' + DOW[d.getDay()] + '</span><span class="d">' + d.getDate() + '</span><span class="w">' + (c.kind === 'festivo' ? 'festivo' : 'descanso') + '</span></th>';
+      return '<th class="' + (state.date === c.idx ? 'sel' : '') + '"><span class="w">' + DOW[d.getDay()] + '</span><span class="d">' + d.getDate() + '</span><span class="w">' + MES[d.getMonth()] + '</span>' + (CIERRES.has(c.idx) ? '<span class="cv">cierre vuelta</span>' : '') + '</th>';
+    }).join('') + '</tr></thead><tbody>';
+    const inview = new Set(routesInView().map(r => r.code));
+    D.routes.forEach(r => {
+      h += '<tr class="' + (inview.has(r.code) ? 'inview' : '') + '"><th class="rh"><span class="c"><span class="sw" style="width:10px;height:10px;border-radius:50%;display:inline-block;background:' + rcol(r) + '"></span>' + r.code + '</span><small>' + esc(who(r.code).nombre) + ' · ' + cityName(r.city) + '</small></th>';
+      CAL.forEach(c => {
+        if (c.kind !== 'lab') { h += '<td class="off"></td>'; return; }
+        const vs = VRD.get(r.code + '|' + c.idx) || [];
+        if (!vs.length) { h += '<td></td>'; return; }
+        const z = ZONE.get(vs[0].z), sel = state.date === c.idx && inview.has(r.code);
+        const dots = '<span class="dots">' + [0, 1, 2].map(k => '<i style="background:' + (k < vs.length ? rcol(r) : 'var(--line)') + '"></i>').join('') + '</span>';
+        h += '<td class="' + (state.date === c.idx ? 'sel' : '') + '"><button type="button" class="cell' + (vs[0].v > 1 ? ' rep' : '') + '" data-r="' + r.code + '" data-d="' + c.idx + '" aria-pressed="' + sel + '" title="' + esc(r.code + ' · ' + z.short + ' · ' + title(z.sector) + ' · ' + vs.length + ' PDV' + (vs[0].v > 1 ? ' · vuelta ' + vs[0].v : '')) + '"><b>' + z.short + '</b>' + dots + '<small>' + esc(title(z.sector)) + '</small></button></td>';
+      });
+      h += '</tr>';
+    });
+    T.innerHTML = h + '</tbody>';
+    $('#calLegend').innerHTML = '<span><b class="mono">D03</b> = día 3 del ciclo de la ruta</span><span>● ● ● = PDV ese día (máx. 3)</span><span><b>↻</b> = la ruta ya cerró su primera vuelta y repite</span><span>“Cierre vuelta” = ese día quedan visitados los 72 PDV</span><span>Columnas rayadas = domingo o festivo</span>';
+  }
+
+  // ---------- tabla de zonificación
+  let qv = '';
+  function renderTable() {
+    const norm = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    const q = norm(qv.trim());
+    const rows = D.pdvs.filter(p => !q || norm([p.route, p.zone, p.name, p.addr, p.sector, p.city, p.id, p.site, who(p.route).nombre].join(' ')).includes(q));
+    $('#qCount').textContent = rows.length + ' de ' + D.pdvs.length + ' PDV';
+    $('#zt').innerHTML = '<thead><tr><th>Ruta</th><th>Promotor</th><th>Zona</th><th>Orden</th><th>ID PDV</th><th>ID site</th><th>PDV</th><th>Dirección</th><th>Sector</th><th>Ciudad</th><th>Min. a pie desde el anterior</th><th>Fechas</th><th>Meta nov.</th><th>Novedad</th></tr></thead><tbody>' +
+      rows.map(p => '<tr data-pdv="' + p.id + '"><td class="mono">' + p.route + '</td><td>' + esc(who(p.route).nombre) + '</td><td class="mono">' + esc(p.zone.slice(-3)) + '</td><td class="num">' + p.ord + ' / ' + p.nz + '</td><td class="num mono">' + p.id + '</td><td class="num mono">' + p.site + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.addr) + '</td><td>' + esc(title(p.sector)) + '</td><td>' + esc(cityName(p.city)) + '</td><td class="num">' + (p.mprev == null ? '—' : n1(p.mprev)) + '</td><td>' + esc(fmtDates(pdvDates.get(p.id) || [], 3)) + '</td><td class="num">' + p.meta + '</td><td>' + (p.alert ? '<span class="tag ' + p.alert.level + '">' + esc(p.alert.short) + '</span>' : (p.note ? '<span class="hint">' + esc(p.note) + '</span>' : '')) + '</td></tr>').join('') + '</tbody>';
+  }
+
+  // ---------- novedades
+  function renderNov() {
+    $('#nov').innerHTML = D.novedades.map(n => '<article class="nov-item"><span class="prio ' + esc(n.prioridad) + '">' + esc(n.prioridad) + '</span><div><h3>' + esc(n.tema) + '</h3><p>' + esc(n.detalle) + '</p><p class="do"><b>Qué hacer:</b> ' + esc(n.accion) + (n.ids ? ' <span class="mono" style="color:var(--muted)">[' + esc(n.ids) + ']</span>' : '') + '</p></div></article>').join('');
+  }
+
+  // ---------- asignación
+  function renderAsig() {
+    const opts = '<option value="">Elegir de la planta activa…</option>' + D.planta.map(p => '<option value="' + esc(p.idf) + '">' + esc(p.nombre) + ' · ' + esc(title(p.centro)) + '</option>').join('');
+    $('#asig').innerHTML = '<thead><tr><th>Ruta</th><th>Ciudad</th><th>PDV</th><th>Persona de la planta</th><th>Cédula</th><th>ID DayByDay</th><th>Nombre</th></tr></thead><tbody>' +
+      D.routes.map(r => {
+        const w = who(r.code), b = base[r.code];
+        const ch = k => (String(w[k]) !== String(b[k]) ? ' changed' : '');
+        return '<tr><td class="mono">' + r.code + '</td><td>' + cityName(r.city) + '</td><td class="num">' + D.pdvs.filter(p => p.route === r.code).length + '</td><td><select data-pick="' + r.code + '" aria-label="Persona para ' + r.code + '">' + opts + '</select></td>' +
+          '<td><input data-f="ced" data-r="' + r.code + '" value="' + esc(w.ced) + '" inputmode="numeric" class="mono' + ch('ced') + '" aria-label="Cédula ' + r.code + '"></td>' +
+          '<td><input data-f="idf" data-r="' + r.code + '" value="' + esc(w.idf) + '" inputmode="numeric" class="mono' + ch('idf') + '" aria-label="ID DayByDay ' + r.code + '"></td>' +
+          '<td><input data-f="nombre" data-r="' + r.code + '" value="' + esc(w.nombre) + '" class="' + ch('nombre') + '" aria-label="Nombre ' + r.code + '"></td></tr>';
+      }).join('') + '</tbody>';
+  }
+
+  function renderHow() {
+    $('#howto').innerHTML = [
+      '<p><b>Cruces.</b> Las 11 personas de la planta activa cruzaron por cédula con el exportable de funcionarios de DayByDay (todas activas). Los 72 ID de PDV cruzaron 1 a 1 con el exportable de PDV de DayByDay y, por nombre, con la base de metas de Movistar (ID site y metas). Cada promotor solo visita los PDV que le asigna esa base.</p>',
+      '<p><b>Tiempos a pie.</b> Se calcularon con rutas peatonales reales sobre la red de calles de OpenStreetMap (OSRM, perfil a pie, unos 4,5 km/h) para los pares de PDV a 800 m o menos. Los pares más lejanos superan de sobra los 8 minutos.</p>',
+      '<p><b>Zonas.</b> Un día junta como máximo 3 PDV, y solo si de un punto al siguiente hay 8 minutos o menos. Con el mismo número de días se prefieren grupos parejos (3-2-2 antes que 3-3-1), no separar locales del mismo centro comercial y caminar lo menos posible.</p>',
+      '<p><b>Fechas.</b> Arranca el viernes 6 de noviembre y sigue de corrido hasta el jueves 31 de diciembre, de lunes a sábado, sin los festivos del 16 de noviembre y del 8 y 25 de diciembre. Los días van en el recorrido más corto entre zonas, empezando por el norte, y cada ruta repite su ciclo de corrido. La vuelta a los 72 PDV se completa cada 11 días hábiles, con la ruta más larga (CEL-BOG-01): ' + esc(fmtDates(D.cierres)) + '. En cada cierre se revisan los puntos.</p>',
+      '<p><b>Horarios.</b> Jornada de 08:00 a 17:00 repartida en partes iguales entre los PDV del día, con 5 o 10 minutos de traslado. Ningún promotor tiene dos ingresos a la misma hora el mismo día, que es lo que valida el cargador de DayByDay.</p>',
+      '<p><b>Exportables.</b> “Plan de trabajo DBD” sale con la misma estructura del archivo de cargue (fechas desde la columna X, bloque de 5 columnas por día, datos desde la fila 5) e incluye latitud y longitud. “Zonificación y programación” trae las hojas de zonas, programación día a día, asignación y novedades.' + (D.publico ? ' Esta versión es para compartir y no trae cédulas; el cargue oficial en DayByDay se hace con el Excel PLAN_DE_TRABAJO.' : '') + '</p>'
+    ].join('');
+  }
+
+  // ---------- render general
+  function render() { renderFilters(); renderMap(); renderPanel(); renderCalendar(); if (typeof updateExportLabels === 'function') updateExportLabels(); }
+
+  // ---------- eventos
+  document.addEventListener('click', e => {
+    const t = e.target.closest('[data-mes],[data-city],[data-route],[data-date],[data-zone],[data-r][data-d],[data-fly],[data-clearzone],tr[data-pdv],.tab,#legendToggle,[data-closelegend]');
+    if (!t) return;
+    if (t.matches('#legendToggle') || t.matches('[data-closelegend]')) { setLegend(t.matches('#legendToggle')); return; }
+    if (t.classList.contains('tab')) {
+      document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-selected', String(b === t)));
+      document.querySelectorAll('.tabpanel').forEach(p => { p.hidden = p.id !== t.getAttribute('aria-controls'); });
+      return;
+    }
+    if (t.hasAttribute('data-city')) { state.city = t.dataset.city; state.route = null; state.zone = null; render(); return; }
+    if (t.hasAttribute('data-route')) { state.route = t.dataset.route || null; state.zone = null; render(); return; }
+    if (t.hasAttribute('data-mes')) { state.month = Number(t.dataset.mes); if (state.date !== null && DATES[state.date].getMonth() + 1 !== state.month) state.date = null; state.zone = null; $('#planMes').value = String(state.month); render(); return; }
+    if (t.hasAttribute('data-date')) { state.date = t.dataset.date === '' ? null : Number(t.dataset.date); state.zone = null; render(); return; }
+    if (t.hasAttribute('data-zone')) { state.zone = t.dataset.zone; render(); return; }
+    if (t.hasAttribute('data-clearzone')) { state.zone = null; render(); return; }
+    if (t.hasAttribute('data-fly')) { const p = PDV.get(Number(t.dataset.fly)); state.zone = p.zone; render(); flyTo(p); return; }
+    if (t.dataset.r && t.dataset.d) {
+      const r = ROUTE.get(t.dataset.r);
+      const d = Number(t.dataset.d);
+      if (state.city !== r.city) { state.city = r.city; state.route = null; }
+      if (D.routes.filter(x => x.city === r.city).length > 1 && state.route && state.route !== r.code) state.route = r.code;
+      state.date = d; state.zone = null; render();
+      document.querySelector('.work').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+      return;
+    }
+    if (t.matches('tr[data-pdv]')) {
+      const p = PDV.get(Number(t.dataset.pdv)), r = ROUTE.get(p.route);
+      state.city = r.city; state.route = D.routes.filter(x => x.city === r.city).length > 1 ? r.code : null; state.date = null; state.zone = p.zone; render();
+      document.querySelector('.work').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    }
+  });
+  $('#q').addEventListener('input', e => { qv = e.target.value; renderTable(); });
+  document.addEventListener('change', e => {
+    const s = e.target.closest('select[data-pick]');
+    if (!s || !s.value) return;
+    const p = D.planta.find(x => String(x.idf) === s.value);
+    if (p) { assign[s.dataset.pick] = { ced: p.ced, idf: String(p.idf), nombre: p.nombre }; afterAssign('Asignación cambiada para ' + s.dataset.pick + '. Guárdala para conservarla en este navegador.'); }
+  });
+  document.addEventListener('input', e => {
+    const i = e.target.closest('input[data-f]');
+    if (!i) return;
+    const r = i.dataset.r; assign[r] = Object.assign({}, who(r), { [i.dataset.f]: i.value.trim() });
+    i.classList.toggle('changed', String(assign[r][i.dataset.f]) !== String(base[r][i.dataset.f]));
+    clearTimeout(document._asT); document._asT = setTimeout(() => { renderFilters(); renderPanel(); renderCalendar(); renderTable(); renderLegend(routesInView()); }, 250);
+  });
+  function afterAssign(msg) { renderAsig(); renderFilters(); renderPanel(); renderCalendar(); renderTable(); renderLegend(routesInView()); $('#asigMsg').textContent = msg || ''; }
+  $('#btnSaveAsig').addEventListener('click', () => {
+    try { localStorage.setItem(AKEY, JSON.stringify(assign)); $('#asigMsg').textContent = 'Guardado en este navegador.'; }
+    catch (e) { $('#asigMsg').textContent = 'Este navegador no permite guardar; el cambio sirve mientras la página esté abierta.'; }
+  });
+  $('#btnResetAsig').addEventListener('click', () => {
+    assign = JSON.parse(JSON.stringify(base));
+    try { localStorage.removeItem(AKEY); } catch (e) { }
+    afterAssign('Se volvió a la asignación original.');
+  });
+
+  // ---------- exportables
+  let xlsxP = null;
+  function loadXLSX() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    if (!xlsxP) xlsxP = new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload = () => (window.XLSX ? res(window.XLSX) : rej(new Error('sin XLSX')));
+      s.onerror = () => { xlsxP = null; rej(new Error('No se pudo cargar el generador de Excel. Revisa la conexión e intenta de nuevo.')); };
+      document.head.appendChild(s);
+    });
+    return xlsxP;
+  }
+  const dlP = (window.claude && typeof window.claude.use === 'function') ? window.claude.use('downloads').catch(() => null) : Promise.resolve(null);
+  async function saveFile(name, data) {
+    const cap = await dlP;
+    if (cap) {
+      try { await cap.save({ filename: name, data: data }); toast('Listo: ' + name); }
+      catch (e) { const c = e && e.code; toast(c === 'declined' ? 'Descarga cancelada.' : c === 'rate_limited' ? 'Ya hay una descarga pendiente; intenta en un momento.' : 'La descarga no está disponible en esta vista.'); }
+      return;
+    }
+    if (window.claude) { toast('La descarga no está disponible en esta vista. Abre el archivo HTML en tu navegador.'); return; }
+    const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+    toast('Listo: ' + name);
+  }
+  const serial = d => (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899, 11, 30)) / 86400000;
+  function exportRoutes() { return $('#onlyView').checked ? D.routes.filter(r => r.city === state.city && (!state.route || r.code === state.route)) : D.routes; }
+  const BASE = ['REGIONAL', 'CLIENTE', 'CARGO', 'SUPERVISOR', 'CEDULA', 'ID FUNCIONARIO', 'FUNCIONARIO', 'ID PDV', 'PDV', 'DIRECCION', 'BARRIO', 'LATITUD', 'LONGITUD', 'CIUDAD', 'COD_RUTA', 'RUTA', 'FRECUENCIA', 'TOTAL_DIAS', 'INTENSIDAD', 'VENTA_PDV', 'ORIGEN', 'CXS', 'MAX_HORAS'];
+  const SUB = ['HORA INGRESO', 'HORA SALIDA', 'TIEMPO PROGRAMADO', 'VALORIZADO', 'NOVEDAD'];
+  const numOrText = v => { const s = String(v == null ? '' : v).trim(); return s === '' ? null : (/^\d+$/.test(s) ? Number(s) : s); };
+  function buildPlan(X, rs, idxs) {
+    const codes = new Set(rs.map(r => r.code));
+    const inSet = new Set(idxs);
+    const nb = BASE.length, nd = idxs.length, width = nb + nd * 5;
+    const aoa = [];
+    const r1 = new Array(width).fill(null), r2 = new Array(width).fill(null), r3 = new Array(width).fill(null);
+    r1[0] = 'PLAN DE TRABAJO'; r2[0] = 'Cliente:'; r2[1] = D.cliente; r3[0] = 'Periodo:';
+    const f2 = d => String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+    r3[1] = f2(DATES[idxs[0]]) + ' - ' + f2(DATES[idxs[nd - 1]]);
+    const r4 = BASE.slice();
+    for (let k = 0; k < nd; k++) { const dk = DATES[idxs[k]]; r1[nb + k * 5] = serial(dk); r2[nb + k * 5] = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'][dk.getDay()]; SUB.forEach(s => r4.push(s)); }
+    aoa.push(r1, r2, r3, r4);
+    const vByP = new Map();
+    D.visits.forEach(v => { if (!codes.has(v.r) || !inSet.has(v.d)) return; if (!vByP.has(v.p)) vByP.set(v.p, []); vByP.get(v.p).push(v); });
+    const pdvs = D.pdvs.filter(p => codes.has(p.route) && vByP.has(p.id));
+    pdvs.forEach(p => {
+      const r = ROUTE.get(p.route), w = who(p.route), vs = vByP.get(p.id) || [];
+      const horas = vs.reduce((a, v) => a + (v.f - v.i) / 60, 0);
+      const z = ZONE.get(p.zone);
+      const row = [p.regional, D.cliente, r.cargo, r.jefe, numOrText(w.ced), numOrText(w.idf), w.nombre, p.id, p.name, p.addr, p.sector, p.lat, p.lon, p.city, p.zone, z.sector,
+        vs.length, new Set(vs.map(v => v.d)).size, vs.length ? Math.round(horas / vs.length * 100) / 100 : 0, p.meta, 'ZONIFICACION CIN', null, Math.round(horas * 100) / 100];
+      for (let k = 0; k < nd; k++) { const v = vs.find(x => x.d === idxs[k]); if (v) row.push(v.i / 1440, v.f / 1440, (v.f - v.i) / 1440, null, null); else row.push(null, null, null, null, null); }
+      aoa.push(row);
+    });
+    const ws = X.utils.aoa_to_sheet(aoa);
+    const A = (r, c) => X.utils.encode_cell({ r: r, c: c });
+    for (let k = 0; k < nd; k++) { const c = nb + k * 5; const cell = ws[A(0, c)]; if (cell) { cell.t = 'n'; cell.z = 'dd/mm/yyyy'; } }
+    for (let i = 4; i < aoa.length; i++) {
+      [11, 12].forEach(c => { const cell = ws[A(i, c)]; if (cell) cell.z = '0.000000'; });
+      for (let k = 0; k < nd; k++) {
+        const c = nb + k * 5;
+        [[c, 'hh:mm'], [c + 1, 'hh:mm'], [c + 2, '[h]:mm']].forEach(([cc, fmt]) => { const cell = ws[A(i, cc)]; if (cell && typeof cell.v === 'number') cell.z = fmt; });
+      }
+    }
+    ws['!merges'] = [];
+    for (let k = 0; k < nd; k++) { const c = nb + k * 5; ws['!merges'].push({ s: { r: 0, c: c }, e: { r: 0, c: c + 4 } }, { s: { r: 1, c: c }, e: { r: 1, c: c + 4 } }); }
+    ws['!cols'] = [14, 12, 16, 26, 12, 12, 32, 9, 32, 32, 22, 11, 12, 14, 16, 28, 9, 9, 9, 9, 16, 6, 9].map(w => ({ wch: w })).concat(Array.from({ length: nd * 5 }, (_, j) => ({ wch: [8, 8, 9, 9, 10][j % 5] })));
+    ws['!freeze'] = { xSplit: 9, ySplit: 4 };
+    return { ws: ws, n: pdvs.length };
+  }
+  async function exportPlan() {
+    const b = $('#btnPlan'); b.disabled = true;
+    try {
+      const X = await loadXLSX(); const rs = exportRoutes();
+      const mes = Number($('#planMes').value);
+      const { ws, n } = buildPlan(X, rs, idxMes(mes));
+      const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, ws, 'PLAN DE TRABAJO');
+      const suf = rs.length === D.routes.length ? '' : '_' + (rs.length === 1 ? rs[0].code : cityName(state.city).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase());
+      const dd = d => String(d.getDate()).padStart(2, '0');
+      const name = 'PLAN_DE_TRABAJO_CELYA_' + (mes === 11 ? 'NOV' : 'DIC') + '2026' + suf + '.xlsx';
+      await saveFile(name, X.write(wb, { bookType: 'xlsx', type: 'array' }));
+      if (!n) toast('No hay PDV para exportar con ese filtro.');
+    } catch (e) { toast(e.message || 'No se pudo generar el archivo.'); }
+    finally { b.disabled = false; }
+  }
+  async function exportZona() {
+    const b = $('#btnZona'); b.disabled = true;
+    try {
+      const X = await loadXLSX(); const rs = exportRoutes(); const codes = new Set(rs.map(r => r.code));
+      const wb = X.utils.book_new();
+      const zrows = [['RUTA', 'PROMOTOR', 'ID FUNCIONARIO DBD', 'ZONA (DÍA DEL CICLO)', 'DÍA DEL CICLO', 'ORDEN DE VISITA', 'PDV EN LA ZONA', 'ID PDV DBD', 'ID SITE MOVISTAR', 'PDV', 'DIRECCIÓN', 'SECTOR', 'CIUDAD', 'LATITUD', 'LONGITUD', 'MIN. A PIE DESDE EL ANTERIOR', 'METROS DESDE EL ANTERIOR', 'PDV MÁS CERCANO (MISMA RUTA)', 'MIN. AL MÁS CERCANO', 'FECHAS PROGRAMADAS', 'META NOV. PROMOTOR MOVISTAR', 'NOVEDAD', 'VER EN MAPA']];
+      D.pdvs.filter(p => codes.has(p.route)).forEach(p => { const w = who(p.route); zrows.push([p.route, w.nombre, numOrText(w.idf), p.zone, p.zn, p.ord, p.nz, p.id, p.site, p.name, p.addr, p.sector, p.city, p.lat, p.lon, p.mprev, p.dprev, p.near, p.nearMin, (pdvDates.get(p.id) || []).map(i => DATES[i].getDate() + '/' + (DATES[i].getMonth() + 1)).join(', '), p.meta, p.alert ? p.alert.text : (p.note || ''), gPoint(p)]); });
+      const prow = [['FECHA', 'DÍA', 'VUELTA', 'RUTA', 'PROMOTOR', 'CÉDULA', 'ID FUNCIONARIO DBD', 'ZONA (DÍA DEL CICLO)', 'ORDEN', 'ID PDV DBD', 'PDV', 'DIRECCIÓN', 'SECTOR', 'CIUDAD', 'LATITUD', 'LONGITUD', 'HORA INGRESO', 'HORA SALIDA', 'TIEMPO PROGRAMADO']];
+      const vs = D.visits.filter(v => codes.has(v.r)).slice().sort((a, b) => a.d - b.d || D.routes.findIndex(r => r.code === a.r) - D.routes.findIndex(r => r.code === b.r) || a.o - b.o);
+      vs.forEach(v => { const p = PDV.get(v.p), w = who(v.r); prow.push([serial(DATES[v.d]), DOWL[DATES[v.d].getDay()].toUpperCase(), v.v, v.r, w.nombre, numOrText(w.ced), numOrText(w.idf), v.z, v.o, p.id, p.name, p.addr, p.sector, p.city, p.lat, p.lon, v.i / 1440, v.f / 1440, (v.f - v.i) / 1440]); });
+      const arow = [['RUTA', 'CIUDAD', 'CÉDULA', 'ID FUNCIONARIO DBD', 'PROMOTOR', 'PDV', 'DÍAS DEL CICLO']];
+      rs.forEach(r => { const w = who(r.code); arow.push([r.code, r.city, numOrText(w.ced), numOrText(w.idf), w.nombre, D.pdvs.filter(p => p.route === r.code).length, r.ciclo]); });
+      const nrow = [['PRIORIDAD', 'TEMA', 'DETALLE', 'IDS', 'QUÉ HACER']].concat(D.novedades.map(n => [n.prioridad, n.tema, n.detalle, n.ids, n.accion]));
+      const ws1 = X.utils.aoa_to_sheet(zrows), ws2 = X.utils.aoa_to_sheet(prow), ws3 = X.utils.aoa_to_sheet(arow), ws4 = X.utils.aoa_to_sheet(nrow);
+      for (let i = 1; i < prow.length; i++) {
+        const c0 = ws2[X.utils.encode_cell({ r: i, c: 0 })]; if (c0) c0.z = 'dd/mm/yyyy';
+        [16, 17].forEach(c => { const cell = ws2[X.utils.encode_cell({ r: i, c: c })]; if (cell) cell.z = 'hh:mm'; });
+        const t = ws2[X.utils.encode_cell({ r: i, c: 18 })]; if (t) t.z = '[h]:mm';
+      }
+      ws1['!cols'] = [12, 30, 12, 16, 8, 8, 8, 10, 10, 32, 34, 24, 15, 11, 12, 10, 10, 28, 10, 22, 10, 50, 40].map(w => ({ wch: w }));
+      ws2['!cols'] = [11, 11, 7, 12, 30, 12, 12, 16, 7, 10, 32, 34, 24, 15, 11, 12, 9, 9, 10].map(w => ({ wch: w }));
+      ws3['!cols'] = [12, 16, 12, 12, 32, 6, 8].map(w => ({ wch: w }));
+      ws4['!cols'] = [10, 18, 90, 22, 70].map(w => ({ wch: w }));
+      X.utils.book_append_sheet(wb, ws1, 'ZONIFICACION'); X.utils.book_append_sheet(wb, ws2, 'PROGRAMACION'); X.utils.book_append_sheet(wb, ws3, 'ASIGNACION'); X.utils.book_append_sheet(wb, ws4, 'NOVEDADES');
+      const suf = rs.length === D.routes.length ? '' : '_' + (rs.length === 1 ? rs[0].code : cityName(state.city).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase());
+      await saveFile('Zonificacion_Programacion_CELYA_Nov-Dic2026' + suf + '.xlsx', X.write(wb, { bookType: 'xlsx', type: 'array' }));
+    } catch (e) { toast(e.message || 'No se pudo generar el archivo.'); }
+    finally { b.disabled = false; }
+  }
+  $('#btnPlan').addEventListener('click', exportPlan);
+  $('#btnZona').addEventListener('click', exportZona);
+  function updateExportLabels() {
+    const on = $('#onlyView').checked;
+    const lbl = on ? ' · ' + (state.route || cityName(state.city)) : '';
+    $('#btnPlan').lastChild.textContent = ' Plan de trabajo DBD' + lbl + ' (.xlsx)';
+    $('#btnZona').lastChild.textContent = ' Zonificación y programación' + lbl + ' (.xlsx)';
+  }
+  $('#onlyView').addEventListener('change', updateExportLabels);
+
+  // arranque
+  renderHeader(); renderNov(); renderAsig(); renderHow(); renderTable();
+  initMap(); $('#legend').hidden = !legendOpen; $('#legendToggle').hidden = legendOpen; render();
+  window.__zonif = { state: state, render: render, buildPlan: buildPlan, loadXLSX: loadXLSX };
+})();
+</script>
+
+</body>
+</html>
